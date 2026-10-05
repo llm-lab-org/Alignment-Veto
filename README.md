@@ -2,7 +2,7 @@
 
 [![arXiv](https://img.shields.io/badge/arXiv-coming%20soon-b31b1b.svg)](https://arxiv.org)
 [![HuggingFace Dataset](https://img.shields.io/badge/🤗%20Dataset-PardisSzah-blue)](https://huggingface.co/datasets/PardisSzah/alignment-veto-responses)
-[![Website](https://img.shields.io/badge/🌐%20Website-GitHub%20Pages-teal)](https://pardissz.github.io/alignment-veto)
+[![Website](https://img.shields.io/badge/🌐%20Website-GitHub%20Pages-teal)](https://llm-lab-org.github.io/Alignment-Veto)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 > **Pardis Sadat Zahraei, Gokhan Tur, Dilek Hakkani-Tür, Ehsaneddin Asgari**
@@ -157,7 +157,7 @@ alignment-veto/
 ### Reproduce the main analysis
 
 ```bash
-git clone https://github.com/pardissz/alignment-veto
+git clone https://github.com/llm-lab-org/Alignment-Veto
 cd alignment-veto
 
 pip install -r requirements.txt
