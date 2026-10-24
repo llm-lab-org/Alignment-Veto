@@ -17,7 +17,7 @@ import os, re, pickle
 import numpy as np
 import pandas as pd
 
-BASE    = '/shared/storage-01/users/zahraei2/mena_normal'
+BASE    = os.environ.get("ALIGNMENT_VETO_ROOT", "data")
 RESULTS = os.path.join(BASE, 'results')
 XLSX    = os.path.join(BASE, 'Fixed_no_mention_corrected (6).xlsx')
 

@@ -9,7 +9,7 @@ Regenerates 7 improved paper figures:
   7. fix1_residual_probe.pdf         — fixed axis coverage
 
 All data is loaded from pre-computed CSV/pkl files in results/.
-Run: python make_fixed_figures.py
+Run: python src/figures/paper_figures.py
 """
 import os
 import warnings
@@ -26,7 +26,7 @@ from scipy import stats
 
 warnings.filterwarnings('ignore')
 
-BASE    = '/shared/storage-01/users/zahraei2/mena_normal'
+BASE    = os.environ.get("ALIGNMENT_VETO_ROOT", "data")
 RESULTS = os.path.join(BASE, 'results')
 
 # ── shared constants ─────────────────────────────────────────────────────────

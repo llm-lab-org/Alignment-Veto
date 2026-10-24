@@ -13,7 +13,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
-RESULTS = '/shared/storage-01/users/zahraei2/mena_normal/results'
+RESULTS = os.path.join(os.environ.get("ALIGNMENT_VETO_ROOT", "data"), "results")
 
 df = pd.read_csv(os.path.join(RESULTS, 'exp3_suppression.csv'))
 df75 = df[df['threshold'] == 0.75].copy()

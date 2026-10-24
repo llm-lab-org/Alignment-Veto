@@ -1,38 +1,35 @@
 # Data
 
-## Model Response Dataset
+The data lives on Hugging Face in two datasets.
 
-The full model response dataset (~1.53M responses across 26 open models) is hosted on HuggingFace:
+| Dataset | What's inside | Access |
+|---|---|---|
+| [`PardisSzah/alignment-veto`](https://huggingface.co/datasets/PardisSzah/alignment-veto) | The 864 questions (tier, scale) and the human survey answers per country (mean + distribution) | Public |
+| [`PardisSzah/alignment-veto-responses`](https://huggingface.co/datasets/PardisSzah/alignment-veto-responses) | ~1.53M raw model responses from 26 LLMs, with refusal flags and normalized logits | Gated, request access |
 
-→ **[PardisSzah/alignment-veto-responses](https://huggingface.co/datasets/PardisSzah/alignment-veto-responses)**
+The responses are gated because they contain unfiltered model outputs on sensitive topics (gender, sexuality, religion), some of which are offensive or misaligned.
 
-```python
-from datasets import load_dataset
-ds = load_dataset("PardisSzah/alignment-veto-responses")
+## Running the code
+
+Put the files in one folder and point the scripts at it:
+
+```bash
+export ALIGNMENT_VETO_ROOT=/path/to/data
+# expected layout
+# $ALIGNMENT_VETO_ROOT/tiers.csv                        questions (from PardisSzah/alignment-veto)
+# $ALIGNMENT_VETO_ROOT/new_weights_transposed.xlsx      human answers (from PardisSzah/alignment-veto)
+# $ALIGNMENT_VETO_ROOT/MENA_TRANSLATED_reasoning/*.xlsx model responses (from the gated dataset)
+# $ALIGNMENT_VETO_ROOT/results/                         outputs are written here
 ```
 
-### Schema
+```python
+from huggingface_hub import snapshot_download
+snapshot_download("PardisSzah/alignment-veto", repo_type="dataset", local_dir="data")
+# model responses: after your access request is approved (run `huggingface-cli login` first)
+snapshot_download("PardisSzah/alignment-veto-responses", repo_type="dataset", local_dir="data/_responses")
+# then move the xlsx files:  mv data/_responses/data data/MENA_TRANSLATED_reasoning
+```
 
-| Column | Type | Description |
-|---|---|---|
-| `model` | str | Model identifier (e.g., `olmo_3_7b_instruct`) |
-| `country` | str | One of 16 MENA countries |
-| `framing` | str | `Personalization`, `Third`, or `No_Mention` |
-| `language` | str | `EN` or native (`AR`, `FA`, `TR`) |
-| `tier` | int | 1 (benign), 2 (moderate), 3 (sensitive) |
-| `question_id` | str | WVS/AOI question identifier |
-| `question_text` | str | Full question text |
-| `response` | str | Model's generated response |
-| `refused` | bool | Whether response is a refusal |
-| `nvas` | float | NVAS score (0–1); NaN if refused |
-| `ev_nvas` | float | EV-NVAS score (internal logits at refusal moment) |
-| `human_mean` | float | WVS/AOI human survey mean for this country×question |
+## Human survey sources
 
-## Human Survey Sources
-
-| Source | License | Access |
-|---|---|---|
-| World Values Survey Wave 7 | Academic license | [worldvaluessurvey.org](https://www.worldvaluessurvey.org) |
-| Arab Opinion Index | Academic license | [arabcenterdc.org](https://www.arabcenterdc.org) |
-
-Questions were restricted to those with ≥4 MENA nations represented in the data.
+Human answers are country-level aggregates from the [World Values Survey Wave 7](https://www.worldvaluessurvey.org) and the [Arab Opinion Index](https://arabcenterdc.org/). Please cite both if you use them.
