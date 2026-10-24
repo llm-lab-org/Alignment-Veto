@@ -233,9 +233,9 @@ def run_part_b(csv_path, outdir):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--master-table",
-                    default="/shared/storage-01/users/zahraei2/mena_normal/results/master_table.pkl")
+                    default=os.path.join(os.environ.get("ALIGNMENT_VETO_ROOT", "data"), "results", "master_table.pkl"))
     ap.add_argument("--outdir",
-                    default="/shared/storage-01/users/zahraei2/mena_normal/results/evnvas_validation")
+                    default=os.path.join(os.environ.get("ALIGNMENT_VETO_ROOT", "data"), "results", "evnvas_validation"))
     ap.add_argument("--part-b", default=None,
                     help="Path to sensitivity CSV from run_evnvas_sensitivity.py")
     args = ap.parse_args()

@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from scipy import stats
 import warnings; warnings.filterwarnings('ignore')
 
-BASE    = '/shared/storage-01/users/zahraei2/mena_normal'
+BASE    = os.environ.get("ALIGNMENT_VETO_ROOT", "data")
 RESULTS = os.path.join(BASE, 'results')
 DEVICE  = 'cuda' if torch.cuda.is_available() else 'cpu'
 print(f'Device: {DEVICE}')

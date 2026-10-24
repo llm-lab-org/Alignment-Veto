@@ -21,7 +21,7 @@ def plog(msg):
     print(msg, flush=True)
 
 # ─── Paths ────────────────────────────────────────────────────────────────────
-BASE     = '/shared/storage-01/users/zahraei2/mena_normal'
+BASE     = os.environ.get("ALIGNMENT_VETO_ROOT", "data")
 DATA_DIR = os.path.join(BASE, 'MENA_TRANSLATED_reasoning')
 RESULTS  = os.path.join(BASE, 'results')
 os.makedirs(RESULTS, exist_ok=True)

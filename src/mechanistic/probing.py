@@ -19,7 +19,7 @@ import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 warnings.filterwarnings('ignore')
 
-BASE    = '/shared/storage-01/users/zahraei2/mena_normal'
+BASE    = os.environ.get("ALIGNMENT_VETO_ROOT", "data")
 RESULTS = os.path.join(BASE, 'results')
 os.makedirs(RESULTS, exist_ok=True)
 

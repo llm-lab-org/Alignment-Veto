@@ -15,7 +15,7 @@ warnings.filterwarnings('ignore')
 
 def plog(msg): print(msg, flush=True)
 
-BASE    = '/shared/storage-01/users/zahraei2/mena_normal'
+BASE    = os.environ.get("ALIGNMENT_VETO_ROOT", "data")
 RESULTS = os.path.join(BASE, 'results')
 
 COUNTRIES = ['Algeria','Egypt','Iran','Iraq','Jordan','Kuwait','Lebanon',

@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import warnings; warnings.filterwarnings('ignore')
 
-BASE    = '/shared/storage-01/users/zahraei2/mena_normal'
+BASE    = os.environ.get("ALIGNMENT_VETO_ROOT", "data")
 RESULTS = os.path.join(BASE, 'results')
 
 # ── Load question text and tier classification ────────────────────────────────

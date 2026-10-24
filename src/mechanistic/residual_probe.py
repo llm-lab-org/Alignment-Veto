@@ -12,7 +12,7 @@ from sklearn.model_selection import cross_val_score
 from sklearn.preprocessing import StandardScaler
 import warnings; warnings.filterwarnings('ignore')
 
-BASE    = '/shared/storage-01/users/zahraei2/mena_normal'
+BASE    = os.environ.get("ALIGNMENT_VETO_ROOT", "data")
 RESULTS = os.path.join(BASE, 'results')
 
 MODELS = {

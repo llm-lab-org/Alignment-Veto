@@ -16,10 +16,10 @@ import json, os, subprocess, sys, time
 from pathlib import Path
 import pandas as pd
 
-BASE  = Path('/shared/storage-01/users/zahraei2/mena_normal')
+BASE  = Path(os.environ.get("ALIGNMENT_VETO_ROOT", "data"))
 DATA  = BASE / 'MENA_TRANSLATED_reasoning'
-HF    = Path('/shared/storage-01/huggingface/hub')
-HF2   = Path('/shared/storage-01/models/hub')
+HF    = Path(os.path.expanduser(os.environ.get("HF_HUB_CACHE", "~/.cache/huggingface/hub")))
+HF2   = Path(os.path.expanduser(os.environ.get("EXTRA_MODELS_HUB", "~/.cache/huggingface/hub")))
 LOG   = BASE / 'results' / 'base_missing_log.txt'
 
 COUNTRIES = [

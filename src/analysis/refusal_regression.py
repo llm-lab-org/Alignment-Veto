@@ -8,7 +8,7 @@ import matplotlib; matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import warnings; warnings.filterwarnings('ignore')
 
-BASE = '/shared/storage-01/users/zahraei2/mena_normal'
+BASE = os.environ.get("ALIGNMENT_VETO_ROOT", "data")
 RESULTS = os.path.join(BASE, 'results')
 
 mt = pd.read_pickle(os.path.join(RESULTS, 'master_table.pkl'))
