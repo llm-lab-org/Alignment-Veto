@@ -13,7 +13,6 @@ Pardis Sadat Zahraei, Gokhan Tur, Dilek Hakkani-Tür, Ehsaneddin Asgari<br>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="MIT"></a>
 </p>
 
-<p align="center"><img src="docs/assets/poster.jpg" width="720" alt="The Alignment Veto"></p>
 
 **TL;DR.** When an aligned LLM refuses a culturally sensitive question, it often still knows the answer: its logits at the refusal match human survey data better than its own answers do (EV-NVAS 0.718 vs NVAS 0.690). We call this the *alignment veto*, and separate it from representational bias, where the model really does not know. 26 models, 16 MENA countries, 864 questions, ~1.5M human responses.
 
