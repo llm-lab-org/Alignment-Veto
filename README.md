@@ -8,8 +8,8 @@ Pardis Sadat Zahraei, Gokhan Tur, Dilek Hakkani-Tür, Ehsaneddin Asgari<br>
 <p align="center">
   <a href="https://arxiv.org/abs/2510.13154"><img src="https://img.shields.io/badge/arXiv-2510.13154-b31b1b.svg" alt="arXiv"></a>
   <a href="https://llm-lab-org.github.io/Alignment-Veto/"><img src="https://img.shields.io/badge/Website-Alignment--Veto-F0B730.svg" alt="Website"></a>
-  <a href="https://huggingface.co/datasets/PardisSzah/alignment-veto"><img src="https://img.shields.io/badge/🤗%20Data-questions%20%2B%20human%20answers-blue" alt="Data"></a>
-  <a href="https://huggingface.co/datasets/PardisSzah/alignment-veto-responses"><img src="https://img.shields.io/badge/🤗%20Responses-gated-lightgrey" alt="Responses"></a>
+  <a href="https://huggingface.co/datasets/llm-lab/alignment-veto"><img src="https://img.shields.io/badge/🤗%20Data-questions%20%2B%20human%20answers-blue" alt="Data"></a>
+  <a href="https://huggingface.co/datasets/llm-lab/alignment-veto-responses"><img src="https://img.shields.io/badge/🤗%20Responses-gated-lightgrey" alt="Responses"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="MIT"></a>
 </p>
 
@@ -20,8 +20,8 @@ Pardis Sadat Zahraei, Gokhan Tur, Dilek Hakkani-Tür, Ehsaneddin Asgari<br>
 
 | | |
 |---|---|
-| [`PardisSzah/alignment-veto`](https://huggingface.co/datasets/PardisSzah/alignment-veto) | Questions + human survey answers (public) |
-| [`PardisSzah/alignment-veto-responses`](https://huggingface.co/datasets/PardisSzah/alignment-veto-responses) | Raw model responses (gated, request access) |
+| [`llm-lab/alignment-veto`](https://huggingface.co/datasets/llm-lab/alignment-veto) | Questions + human survey answers (public) |
+| [`llm-lab/alignment-veto-responses`](https://huggingface.co/datasets/llm-lab/alignment-veto-responses) | Raw model responses (gated, request access) |
 
 See [`data/README.md`](data/README.md) for the folder layout the scripts expect.
 
