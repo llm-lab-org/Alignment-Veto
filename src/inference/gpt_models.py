@@ -28,9 +28,8 @@ import pandas as pd
 from openai import OpenAI
 from tqdm import tqdm
 
-# ---- API configuration ----
 API_KEY = os.environ["OPENAI_API_KEY"]
-BASE_URL = os.environ.get("OPENAI_BASE_URL")  # None = default OpenAI endpoint
+BASE_URL = os.environ.get("OPENAI_BASE_URL")
 
 MODEL = "gpt-4o-mini"
 MODEL_NAME = "gpt4o_mini"
@@ -38,7 +37,6 @@ MAX_TOKENS = 64
 
 client = OpenAI(api_key=API_KEY, base_url=BASE_URL)
 
-# ---- Column classification (identical to code.py) ----
 PROMPT_COLUMN_HEADERS = {
     "Algeria", "Egypt", "Iran", "Iraq", "Jordan", "Kuwait", "Lebanon",
     "Libya", "Mauritania", "Morocco", "Palestine", "Qatar", "Saudi Arabia",
@@ -107,10 +105,8 @@ def evaluate_prompt_gpt(prompt: str, valid_options: list) -> dict:
     generated_text = response.choices[0].message.content or ""
     extracted_number = extract_number(generated_text, valid_options)
 
-    # Build a token → probability map from the first generated token's top logprobs.
-    # Tokens are stripped of surrounding whitespace so "1", " 1", "1 " all map to "1".
     token_prob_map: dict[str, float] = {}
-    logprobs_content = (response.choices[0].logprobs or {}).content or []  # type: ignore[union-attr]
+    logprobs_content = (response.choices[0].logprobs or {}).content or []
     if logprobs_content:
         for tlp in logprobs_content[0].top_logprobs:
             key = tlp.token.strip()
@@ -196,7 +192,6 @@ def process_sheet(df: pd.DataFrame, sheet_name: str,
         with open(ckpt_file, "w", encoding="utf-8") as f:
             json.dump(cache, f, ensure_ascii=False)
 
-        # Write results back into the dataframe
         full_col = pd.Series(index=df.index, dtype=object)
         num_col  = pd.Series(index=df.index, dtype=object)
         an_col   = pd.Series(index=df.index, dtype=object)
@@ -251,7 +246,6 @@ def main():
     print(f"Output: {args.output}")
     print(f"Sheets: {sheet_names}")
 
-    # Load from existing output if present (for auto-resume), else from input
     all_dfs: dict[str, pd.DataFrame] = {}
     existing_sheets: set[str] = set()
     if args.output.exists():
@@ -319,9 +313,8 @@ import pandas as pd
 from openai import OpenAI
 from tqdm import tqdm
 
-# ---- API configuration ----
 API_KEY = os.environ["OPENAI_API_KEY"]
-BASE_URL = os.environ.get("OPENAI_BASE_URL")  # None = default OpenAI endpoint
+BASE_URL = os.environ.get("OPENAI_BASE_URL")
 
 MODEL = "gpt-4o-mini"
 MODEL_NAME = "gpt4o_mini"
@@ -329,7 +322,6 @@ MAX_TOKENS = 256
 
 client = OpenAI(api_key=API_KEY, base_url=BASE_URL)
 
-# ---- Column classification (identical to code.py) ----
 PROMPT_COLUMN_HEADERS = {
     "Algeria", "Egypt", "Iran", "Iraq", "Jordan", "Kuwait", "Lebanon",
     "Libya", "Mauritania", "Morocco", "Palestine", "Qatar", "Saudi Arabia",
@@ -398,10 +390,8 @@ def evaluate_prompt_gpt(prompt: str, valid_options: list) -> dict:
     generated_text = response.choices[0].message.content or ""
     extracted_number = extract_number(generated_text, valid_options)
 
-    # Build a token → probability map from the first generated token's top logprobs.
-    # Tokens are stripped of surrounding whitespace so "1", " 1", "1 " all map to "1".
     token_prob_map: dict[str, float] = {}
-    logprobs_content = (response.choices[0].logprobs or {}).content or []  # type: ignore[union-attr]
+    logprobs_content = (response.choices[0].logprobs or {}).content or []
     if logprobs_content:
         for tlp in logprobs_content[0].top_logprobs:
             key = tlp.token.strip()
@@ -487,7 +477,6 @@ def process_sheet(df: pd.DataFrame, sheet_name: str,
         with open(ckpt_file, "w", encoding="utf-8") as f:
             json.dump(cache, f, ensure_ascii=False)
 
-        # Write results back into the dataframe
         full_col = pd.Series(index=df.index, dtype=object)
         num_col  = pd.Series(index=df.index, dtype=object)
         an_col   = pd.Series(index=df.index, dtype=object)
@@ -542,7 +531,6 @@ def main():
     print(f"Output: {args.output}")
     print(f"Sheets: {sheet_names}")
 
-    # Load from existing output if present (for auto-resume), else from input
     all_dfs: dict[str, pd.DataFrame] = {}
     existing_sheets: set[str] = set()
     if args.output.exists():

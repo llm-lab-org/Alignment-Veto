@@ -76,12 +76,11 @@ for mk in INSTRUCT_MODELS:
 df = pd.DataFrame(rows)
 df.to_csv(os.path.join(RESULTS, 'gap1_framing_comparison.csv'), index=False)
 
-# Pivot: per model, T3 refusal and NVAS for Persona vs Third
 t3 = df[df['tier']==3].copy()
 piv_ref  = t3.pivot_table(index='label', columns='framing', values='refusal')
 piv_nvas = t3.pivot_table(index='label', columns='framing', values='nvas')
-piv_ref['delta_ref']   = piv_ref['Third']  - piv_ref['Persona']   # neg = good
-piv_nvas['delta_nvas'] = piv_nvas['Third'] - piv_nvas['Persona']  # pos = good
+piv_ref['delta_ref']   = piv_ref['Third']  - piv_ref['Persona']
+piv_nvas['delta_nvas'] = piv_nvas['Third'] - piv_nvas['Persona']
 
 print('=== Third framing effect on T3 ===')
 combined = pd.DataFrame({
@@ -94,12 +93,10 @@ print(combined.round(3).sort_values('Δ_nvas', ascending=False).to_string())
 print(f"\nMean Δ_ref={piv_ref['delta_ref'].mean():+.3f}  "
       f"Mean Δ_nvas={piv_nvas['delta_nvas'].mean():+.3f}")
 
-# Paired t-test across models
 valid = piv_nvas.dropna()
 t, p = stats.ttest_rel(valid['Third'], valid['Persona'])
 print(f"Paired t-test Third vs Persona NVAS (T3): t={t:.2f}, p={p:.4f}")
 
-# ── FIGURE 1: Two-panel — refusal reduction + NVAS improvement ─────────────
 models_sorted = combined.sort_values('Δ_nvas', ascending=False).index.tolist()
 n_m = len(models_sorted)
 y   = np.arange(n_m)
@@ -108,7 +105,6 @@ cols = [FAM_COLOR.get(MODEL_FAM.get(m, 'Western'), '#555') for m in models_sorte
 fig, axes = plt.subplots(1, 2, figsize=(13, max(6, n_m*0.38)))
 fig.patch.set_facecolor('white')
 
-# Left: T3 refusal rate Persona vs Third
 ax = axes[0]; ax.set_facecolor('#FAFAFA')
 p_vals = [combined.loc[m, 'Persona_ref'] if m in combined.index else np.nan for m in models_sorted]
 t_vals = [combined.loc[m, 'Third_ref']   if m in combined.index else np.nan for m in models_sorted]
@@ -124,7 +120,6 @@ ax.axvline(0.1, color='#aaa', lw=0.7, ls='--', alpha=0.5)
 ax.grid(axis='x', lw=0.3, alpha=0.4, color='#ccc')
 ax.set_xlim(-0.02, 1.0)
 
-# Right: T3 NVAS Persona vs Third
 ax2 = axes[1]; ax2.set_facecolor('#FAFAFA')
 pn_vals = [combined.loc[m, 'Persona_nvas'] if m in combined.index else np.nan for m in models_sorted]
 tn_vals = [combined.loc[m, 'Third_nvas']   if m in combined.index else np.nan for m in models_sorted]
@@ -139,7 +134,6 @@ ax2.set_title(f'Accepted NVAS: Persona (●) → Third (◆)\nMean Δ = {piv_nva
 ax2.grid(axis='x', lw=0.3, alpha=0.4, color='#ccc')
 ax2.set_xlim(0.3, 1.0)
 
-# Legend
 handles = [mpatches.Patch(color=c, label=k) for k, c in FAM_COLOR.items()
            if any(MODEL_FAM.get(m,'') == k for m in models_sorted)]
 handles += [plt.Line2D([0],[0], marker='o', color='#555', label='Persona', ls='none', ms=6),
@@ -154,7 +148,6 @@ out = os.path.join(RESULTS, 'gap1_third_framing_intervention.pdf')
 fig.savefig(out, bbox_inches='tight', dpi=200); plt.close(fig)
 print(f'Saved: {out}')
 
-# ── FIGURE 2: Scatter — Δ_ref vs Δ_nvas (tradeoff space) ────────────────────
 fig2, ax3 = plt.subplots(figsize=(8, 6)); fig2.patch.set_facecolor('white')
 ax3.set_facecolor('#FAFAFA')
 for m in models_sorted:
@@ -179,7 +172,6 @@ out2 = os.path.join(RESULTS, 'gap1_third_framing_scatter.pdf')
 fig2.savefig(out2, bbox_inches='tight', dpi=200); plt.close(fig2)
 print(f'Saved: {out2}')
 
-# ── FIGURE 3: T3 NVAS across all 3 tiers (Third vs Persona) — T1/T2 stability
 fig3, axes3 = plt.subplots(1, 3, figsize=(13, 5)); fig3.patch.set_facecolor('white')
 for ti, t in enumerate([1, 2, 3]):
     ax = axes3[ti]; ax.set_facecolor('#FAFAFA')

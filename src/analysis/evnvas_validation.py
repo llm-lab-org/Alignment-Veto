@@ -28,7 +28,6 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 
-# ── helpers ────────────────────────────────────────────────────────────────────
 
 def ev_from_probs(p):
     if isinstance(p, str):
@@ -52,12 +51,10 @@ def argmax_label(p):
     return int(max(p, key=lambda k: p[k]))
 
 
-# ── Part A ─────────────────────────────────────────────────────────────────────
 
 def run_part_a(df, outdir):
     os.makedirs(outdir, exist_ok=True)
 
-    # Focus on instruction-tuned models (they drive refusals)
     it_keywords = ["instruct", "_it", "chat", "mini", "gpt", "aya", "allam",
                    "fanar", "jais", "tulu", "qwen"]
     it_models = [m for m in df.model.unique()
@@ -65,7 +62,6 @@ def run_part_a(df, outdir):
     dfi = df[df.model.isin(it_models) & df.human_mean.notna()].copy()
     print(f"Instruction-tuned rows: {len(dfi)}  models: {len(it_models)}")
 
-    # ── 1. Argmax match rate ────────────────────────────────────────────────
     ans = dfi[(dfi.refusal == False) & dfi.extracted.notna()].copy()
     ans["argmax"] = [argmax_label(r.norm_probs) for _, r in ans.iterrows()]
     ans["argmax_ok"] = ans.argmax == ans.extracted.astype(int)
@@ -79,9 +75,7 @@ def run_part_a(df, outdir):
         print(f"  T{t}: {rate:.3f}  (n={len(sub):,})")
     print(f"  Overall: {ans.argmax_ok.mean():.3f}  (n={len(ans):,})")
 
-    # ── 2. EV correlation ──────────────────────────────────────────────────
     ans["ev"] = [ev_from_probs(r.norm_probs) for _, r in ans.iterrows()]
-    # Drop NaN ev
     ans_ev = ans.dropna(subset=["ev"])
     r_p, _ = stats.pearsonr(ans_ev.ev, ans_ev.extracted)
     r_s, _ = stats.spearmanr(ans_ev.ev, ans_ev.extracted)
@@ -96,7 +90,6 @@ def run_part_a(df, outdir):
         rp, _ = stats.pearsonr(sub.ev, sub.extracted)
         print(f"  T{t}: Pearson r={rp:.3f}  (n={len(sub):,})")
 
-    # ── 3. Paired gap ─────────────────────────────────────────────────────
     dfi2 = dfi.copy()
     dfi2["ev"] = [ev_from_probs(r.norm_probs) for _, r in dfi2.iterrows()]
     dfi2["ev_nvas"] = [nvas(r.ev, r.human_mean, r.vmin, r.vmax)
@@ -117,7 +110,6 @@ def run_part_a(df, outdir):
         print(f"  T{t}: gap={gap:+.4f}  (n_questions={len(common)}, "
               f"t={t_stat:.2f}, p={p_val:.4g})")
 
-    # ── Scatter plot: EV vs extracted ─────────────────────────────────────
     fig, ax = plt.subplots(figsize=(5, 4))
     colors = {1: "#2196F3", 2: "#FF9800", 3: "#E91E63"}
     for t in [1, 2, 3]:
@@ -135,7 +127,6 @@ def run_part_a(df, outdir):
     plt.close()
     print(f"\nSaved scatter → {outdir}/evnvas_validation_scatter.pdf")
 
-    # ── Paired gap bar plot ────────────────────────────────────────────────
     fig, ax = plt.subplots(figsize=(4, 3))
     gaps = []
     for t in [1, 2, 3]:
@@ -157,7 +148,6 @@ def run_part_a(df, outdir):
     return dict(r_pearson=r_p, r_spearman=r_s, mae=mae, gaps=gaps)
 
 
-# ── Part B ─────────────────────────────────────────────────────────────────────
 
 def run_part_b(csv_path, outdir):
     """
@@ -192,7 +182,6 @@ def run_part_b(csv_path, outdir):
         lambda x: np.dot(softmax(json.loads(x)), np.arange(1, len(json.loads(x)) + 1))
     )
 
-    # EV-NVAS for each condition (assumes 1..n scale)
     for col in logit_cols:
         df_s[f"ev_{col}"] = df_s[col].apply(
             lambda x: ev_from_list(x) if pd.notna(x) else np.nan
@@ -210,7 +199,6 @@ def run_part_b(csv_path, outdir):
         print(f"  {nc} vs {ref_col}: mean |ΔNVAS|={mean_diff:.4f}, "
               f"fraction >0.05 NVAS change={frac_unstable:.3f}")
 
-    # Summary figure
     fig, axes = plt.subplots(1, len(nvas_cols) - 1,
                              figsize=(4 * (len(nvas_cols) - 1), 4), sharey=True)
     if len(nvas_cols) == 2:
@@ -228,7 +216,6 @@ def run_part_b(csv_path, outdir):
     print(f"Saved sensitivity scatter → {outdir}/evnvas_sensitivity_scatter.pdf")
 
 
-# ── main ───────────────────────────────────────────────────────────────────────
 
 def main():
     ap = argparse.ArgumentParser()

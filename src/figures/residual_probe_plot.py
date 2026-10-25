@@ -25,8 +25,7 @@ MODELS = {
     'llama_3.1_8b_instruct': {'label': 'LLaMA-8B-IT', 'color': '#2E7D32'},
 }
 
-# Get question-only baseline from existing data as metadata fallback
-r2_question_baseline = 0.666  # known WVS baseline; also stored during original run
+r2_question_baseline = 0.666
 
 fig = plt.figure(figsize=(13, 9))
 fig.patch.set_facecolor('white')
@@ -68,7 +67,6 @@ ax_tr.legend(fontsize=6.5, framealpha=0.9, loc='upper left',
              handles=[plt.Line2D([],[],color='#E53935',ls=':',lw=1.2,
                                   label=f'Q-only baseline ({r2_question_baseline:.3f})')])
 
-# Bottom panel: residualized T3 probe (full width)
 ax_bot.set_facecolor('#FAFAFA')
 for mk, info in MODELS.items():
     sub = df[df['model'] == mk].sort_values('layer')

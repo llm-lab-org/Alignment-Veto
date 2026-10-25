@@ -75,7 +75,6 @@ def family_color(m, positive):
 piv['label'] = piv['model'].map(label_map).fillna(piv['model'])
 piv['delta'] = piv['agreement_rate_3'] - piv['agreement_rate_2']
 
-# propagate CI via sqrt(se2^2 + se3^2) (independent bootstrap CIs → approx)
 piv['se2'] = (piv['ci_hi_2'] - piv['ci_lo_2']) / (2 * 1.96)
 piv['se3'] = (piv['ci_hi_3'] - piv['ci_lo_3']) / (2 * 1.96)
 piv['delta_err'] = 1.96 * np.sqrt(piv['se2']**2 + piv['se3']**2)
@@ -92,20 +91,16 @@ y = np.arange(n)
 bars = ax.barh(y, piv['delta'], color=piv['color'], height=0.65,
                edgecolor='white', linewidth=0.4, zorder=3)
 
-# Error bars
 ax.errorbar(piv['delta'], y,
             xerr=piv['delta_err'], fmt='none',
             ecolor='#333333', elinewidth=0.9, capsize=3, alpha=0.6, zorder=4)
 
-# Zero line
 ax.axvline(0, color='#333333', lw=1.2, zorder=5)
 
-# Shade positive region lightly
 xlim = max(abs(piv['delta'].min()), abs(piv['delta'].max())) + 0.06
 ax.axvspan(0, xlim, alpha=0.04, color='#1565C0', zorder=0)
 ax.axvspan(-xlim, 0, alpha=0.04, color='#B71C1C', zorder=0)
 
-# Value labels
 for i, (_, row) in enumerate(piv.iterrows()):
     sign = '+' if row['delta'] >= 0 else ''
     x_label = row['delta'] + row['delta_err'] + 0.005 if row['delta'] >= 0 \
@@ -125,7 +120,6 @@ ax.set_title('Extra latent WVS agreement on Tier 3 vs Tier 2 during refusals\n'
 ax.set_xlim(-xlim, xlim)
 ax.grid(axis='x', lw=0.4, alpha=0.5, color='#cccccc', zorder=0)
 
-# Annotations
 ax.text(xlim * 0.97, n - 0.5, 'Suppression\nsignature\n(knows but hides)',
         ha='right', va='top', fontsize=8, color='#1565C0',
         style='italic', alpha=0.75)
@@ -133,7 +127,6 @@ ax.text(-xlim * 0.97, 0.5, 'Genuine Tier 3\nuncertainty',
         ha='left', va='bottom', fontsize=8, color='#B71C1C',
         style='italic', alpha=0.75)
 
-# Count summary
 n_pos = (piv['delta'] > 0).sum()
 ax.text(0.01, 0.01,
         f'{n_pos}/{n} models: T3 agreement > T2 agreement',

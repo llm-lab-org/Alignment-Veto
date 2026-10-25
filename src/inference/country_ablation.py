@@ -40,7 +40,6 @@ RESULTS = os.path.join(BASE, 'results')
 print('Loading master_table.pkl ...')
 mt = pickle.load(open(os.path.join(RESULTS, 'master_table.pkl'), 'rb'))
 
-# Focus on Personalization + Third (country-aware framings), T3, refused, with WVS data
 t3_ref = mt[
     (mt['tier'] == 3) &
     (mt['refusal'] == True) &
@@ -52,17 +51,13 @@ t3_ref = mt[
 
 print(f'T3 refused rows (Persona+Third, with WVS): {len(t3_ref)}')
 
-# Build a lookup: (question_id, country) → wvs majority answer
-# We need WVS data for ALL countries for each question
-# Get it from all non-refusal rows in t3 with WVS data
 t3_all = mt[
     (mt['tier'] == 3) &
     (mt['country'] != 'NEUTRAL') &
     mt['human_dist'].apply(lambda x: isinstance(x, dict) and len(x) > 0)
 ].copy()
 
-# WVS majority per (question_id, country)
-wvs_lookup = {}  # (qid, country) → majority_answer (int)
+wvs_lookup = {}
 for _, row in t3_all.drop_duplicates(['question_id', 'country']).iterrows():
     qid = int(row['question_id'])
     cty = row['country']
@@ -71,16 +66,14 @@ for _, row in t3_all.drop_duplicates(['question_id', 'country']).iterrows():
         maj = int(max(hd, key=lambda k: hd[k]))
         wvs_lookup[(qid, cty)] = maj
 
-# All countries with WVS data per question
 from collections import defaultdict
-q_countries = defaultdict(set)  # qid → set of countries with WVS
+q_countries = defaultdict(set)
 for (qid, cty) in wvs_lookup:
     q_countries[qid].add(cty)
 
 print(f'WVS lookup entries: {len(wvs_lookup)}')
 print(f'T3 questions with ≥2 WVS countries: {sum(1 for v in q_countries.values() if len(v)>=2)}')
 
-# ── Compute delta per row ─────────────────────────────────────────────────────
 delta_rows = []
 for _, row in t3_ref.iterrows():
     qid = int(row['question_id'])
@@ -93,7 +86,6 @@ for _, row in t3_ref.iterrows():
 
     true_mass = np_.get(str(true_maj), 0.0)
 
-    # Mass on WVS majority for all OTHER countries for this question
     other_masses = []
     for other_cty in q_countries.get(qid, set()):
         if other_cty == cty:
@@ -104,15 +96,14 @@ for _, row in t3_ref.iterrows():
         other_masses.append(np_.get(str(other_maj), 0.0))
 
     if len(other_masses) < 2:
-        continue  # need at least 2 other countries
+        continue
 
     mean_other = np.mean(other_masses)
     delta = true_mass - mean_other
 
-    # Rank of true country (1 = highest mass)
     all_masses = [true_mass] + other_masses
     all_masses_sorted = sorted(all_masses, reverse=True)
-    rank = all_masses_sorted.index(true_mass) + 1  # 1-indexed
+    rank = all_masses_sorted.index(true_mass) + 1
 
     delta_rows.append({
         'model': row['model'],
@@ -133,15 +124,12 @@ print(f'Mean delta (true - other): {delta_df["delta"].mean():.4f}')
 print(f'Fraction positive: {(delta_df["delta"] > 0).mean():.3f}')
 print(f'Mean rank (1=best): {delta_df["rank"].mean():.2f} (random baseline: {(delta_df["n_countries"]+1).mean()/2:.2f})')
 
-# One-sample t-test: delta > 0?
 t, p = stats.ttest_1samp(delta_df['delta'], 0, alternative='greater')
 print(f'One-sample t-test (delta > 0): t={t:.2f}, p={p:.2e}')
 
-# Wilcoxon signed-rank
 w, pw = stats.wilcoxon(delta_df['delta'], alternative='greater')
 print(f'Wilcoxon signed-rank (delta > 0): W={w:.0f}, p={pw:.2e}')
 
-# ── Per-model summary ─────────────────────────────────────────────────────────
 label_map = {
     'allam_7b_instruct': 'ALLAM-7B',
     'aya_expanse_8b': 'AYA-8B',
@@ -214,13 +202,11 @@ for _, r in summary.iterrows():
           f"{r['frac_positive']:>7.3f} {r['mean_rank']:>10.2f} "
           f"{r['p_value']:>10.4f} {sig}")
 
-# ── Figure: horizontal bar chart of mean_delta per model ─────────────────────
 summary_plot = summary.sort_values('mean_delta', ascending=True).reset_index(drop=True)
 n = len(summary_plot)
 fig, axes = plt.subplots(1, 2, figsize=(14, max(5, n * 0.38)))
 fig.patch.set_facecolor('white')
 
-# Left: mean delta
 ax1 = axes[0]
 ax1.set_facecolor('#FAFAFA')
 y = np.arange(n)
@@ -243,7 +229,6 @@ for i, (_, row) in enumerate(summary_plot.iterrows()):
         x_pos = row['mean_delta'] + 1.96 * row['se_delta'] + 0.002
         ax1.text(x_pos, i, sig, va='center', ha='left', fontsize=8, color='#333')
 
-# Right: mean rank vs expected rank (random baseline)
 ax2 = axes[1]
 ax2.set_facecolor('#FAFAFA')
 ax2.barh(y, summary_plot['expected_rank'] - summary_plot['mean_rank'],

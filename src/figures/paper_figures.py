@@ -29,7 +29,6 @@ warnings.filterwarnings('ignore')
 BASE    = os.environ.get("ALIGNMENT_VETO_ROOT", "data")
 RESULTS = os.path.join(BASE, 'results')
 
-# ── shared constants ─────────────────────────────────────────────────────────
 LABEL_MAP = {
     'allam_7b_instruct':      'ALLAM-7B',
     'aya_expanse_8b':         'AYA-8B',
@@ -94,9 +93,6 @@ def save(fig, name):
     print(f'  Saved: {out}')
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 1. gating_vs_erasing_pipeline.pdf  — blue / green / purple lines
-# ══════════════════════════════════════════════════════════════════════════════
 print('=== 1. gating_vs_erasing_pipeline ===')
 
 refusal_df = pd.read_csv(os.path.join(RESULTS, 'exp2a_refusal.csv'))
@@ -107,11 +103,10 @@ OLMO32 = ['olmo_3_32b_base', 'olmo_3_32b_sft', 'olmo_3_32b_dpo', 'olmo_3_32b_ins
 TULU   = ['llama_3.1_8b_base', 'tulu_3_8b_sft', 'tulu_3_8b_dpo', 'tulu_3.1_8b']
 X_LABELS = ['Base', 'SFT', 'DPO', 'RLVR (IT)']
 
-# ← changed colors to blue / green / purple
 PIPELINE_SPECS = [
-    ('OLMo-7B',  OLMO7,  '#1565C0'),   # blue
-    ('OLMo-32B', OLMO32, '#2E7D32'),   # green
-    ('Tulu-8B',  TULU,   '#6A1B9A'),   # purple
+    ('OLMo-7B',  OLMO7,  '#1565C0'),
+    ('OLMo-32B', OLMO32, '#2E7D32'),
+    ('Tulu-8B',  TULU,   '#6A1B9A'),
 ]
 
 fig, axes = plt.subplots(1, 2, figsize=(13, 5.5))
@@ -155,9 +150,6 @@ fig.tight_layout()
 save(fig, 'gating_vs_erasing_pipeline.pdf')
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 2. suppression_cost.pdf  — bigger scatter dots
-# ══════════════════════════════════════════════════════════════════════════════
 print('=== 2. suppression_cost ===')
 
 supp_idx = pd.read_csv(os.path.join(RESULTS, 'exp11_suppression_index.csv'))
@@ -183,7 +175,6 @@ ax1.plot([lmin, lmax], [lmin, lmax], color='#555', lw=1.2, ls='--', zorder=1,
          label='diagonal (equal)')
 for _, r in cost_df.iterrows():
     col = fam_color(r['model'])
-    # ← bigger dots: s=70 → s=160
     ax1.scatter([r['acc_nvas']], [r['ev_nvas_refused']], s=160,
                 color=col, zorder=4, edgecolors='white', linewidths=0.8)
     ax1.annotate(r['label'], (r['acc_nvas'], r['ev_nvas_refused']),
@@ -226,9 +217,6 @@ fig.tight_layout()
 save(fig, 'suppression_cost.pdf')
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 3. gapB_t3_question_taxonomy.pdf  — pastel quadrant backgrounds
-# ══════════════════════════════════════════════════════════════════════════════
 print('=== 3. gapB_t3_question_taxonomy ===')
 
 q_stats = pd.read_csv(os.path.join(RESULTS, 'gapB_t3_question_taxonomy.csv'))
@@ -250,16 +238,11 @@ ax.set_facecolor('#FAFAFA')
 XLIM = (-0.02, 0.65)
 YLIM = (0.10, 1.00)
 
-# ← pastel quadrant backgrounds
-# top-left  (low refusal, high nvas)  = Well-aligned        → light green
-# top-right (high refusal, high nvas) = Suppressed          → light yellow
-# bottom-left  (low refusal, low nvas)  = Representational  → light lavender
-# bottom-right (high refusal, low nvas) = Double failure    → light salmon
 quadrants = [
-    (XLIM[0], REFUSAL_THRESH, NVAS_THRESH, YLIM[1],  '#E8F5E9'),   # top-left: light green
-    (REFUSAL_THRESH, XLIM[1], NVAS_THRESH, YLIM[1],  '#FFFDE7'),   # top-right: light yellow
-    (XLIM[0], REFUSAL_THRESH, YLIM[0],    NVAS_THRESH,'#F3E5F5'),  # bottom-left: light lavender
-    (REFUSAL_THRESH, XLIM[1], YLIM[0],    NVAS_THRESH,'#FFEBEE'),  # bottom-right: light pink/salmon
+    (XLIM[0], REFUSAL_THRESH, NVAS_THRESH, YLIM[1],  '#E8F5E9'),
+    (REFUSAL_THRESH, XLIM[1], NVAS_THRESH, YLIM[1],  '#FFFDE7'),
+    (XLIM[0], REFUSAL_THRESH, YLIM[0],    NVAS_THRESH,'#F3E5F5'),
+    (REFUSAL_THRESH, XLIM[1], YLIM[0],    NVAS_THRESH,'#FFEBEE'),
 ]
 for x0, x1, y0, y1, c in quadrants:
     ax.fill_between([x0, x1], [y0, y0], [y1, y1], color=c, zorder=0, alpha=1.0)
@@ -302,9 +285,6 @@ fig.tight_layout()
 save(fig, 'gapB_t3_question_taxonomy.pdf')
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 4. flagship_gating_scatter.pdf  — much bigger dots
-# ══════════════════════════════════════════════════════════════════════════════
 print('=== 4. flagship_gating_scatter ===')
 
 all_models = sorted(refusal_df['model'].unique())
@@ -374,9 +354,6 @@ fig.tight_layout()
 save(fig, 'flagship_gating_scatter.pdf')
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 5 & 6. pca_7_3_native.pdf and pca_7_4_persona_neutral.pdf  — bigger dots
-# ══════════════════════════════════════════════════════════════════════════════
 print('=== 5 & 6. PCA 7.3 and 7.4 (loading master_table.pkl ~206 MB) ===')
 MASTER = pd.read_pickle(os.path.join(RESULTS, 'master_table.pkl'))
 print('  master_table loaded.')
@@ -410,7 +387,6 @@ def get_country_matrix(master, model, sheet):
     return coords, valid_c
 
 
-# ── PCA 7.3: Native Language Observer ────────────────────────────────────────
 focus_73 = ['olmo_3_7b_instruct','llama_3.1_8b_instruct',
             'qwen2.5_7b_instruct','gemma_3_12b_it','aya_expanse_8b']
 focus_73 = [m for m in focus_73 if m in MASTER['model'].unique()]
@@ -440,7 +416,6 @@ if focus_73:
     save(fig, 'pca_7_3_native.pdf')
 
 
-# ── PCA 7.4: Persona + Neutral ────────────────────────────────────────────────
 focus_74 = ['olmo_3_7b_instruct','llama_3.1_8b_instruct',
             'qwen2.5_7b_instruct','gemma_3_12b_it']
 focus_74 = [m for m in focus_74 if m in MASTER['model'].unique()]
@@ -499,7 +474,6 @@ if focus_74:
         ax.set_title(model.replace('_', ' '), fontsize=11)
         ax.tick_params(axis='both', labelsize=10)
         ax.grid(lw=0.3, alpha=0.4, color='#ccc')
-        # legend for language families
         handles74 = [mpatches.Patch(color=v, label=k) for k, v in fam_col.items()]
         handles74.append(plt.Line2D([0],[0], marker='*', color='black', ls='',
                                     ms=12, label='LLM (neutral)'))
@@ -510,9 +484,6 @@ if focus_74:
     save(fig, 'pca_7_4_persona_neutral.pdf')
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 7. fix1_residual_probe.pdf  — fixed axis coverage
-# ══════════════════════════════════════════════════════════════════════════════
 print('=== 7. fix1_residual_probe ===')
 
 df = pd.read_csv(os.path.join(RESULTS, 'fix1_residual_probe_results.csv'))
@@ -544,7 +515,6 @@ ax_tl  = fig.add_subplot(gs[0, 0])
 ax_tr  = fig.add_subplot(gs[0, 1])
 ax_bot = fig.add_subplot(gs[1, :])
 
-# Pre-compute reasonable ylims per metric
 ylim_total     = sensible_ylim(df['r2_total'])
 ylim_t3_total  = sensible_ylim(df['r2_t3_total'])
 ylim_t3_resid  = sensible_ylim(df['r2_t3_resid'])
@@ -564,7 +534,6 @@ for ax, metric, ylim, title in top_panels:
         valid  = ~np.isnan(y_vals)
         if valid.sum() < 2:
             continue
-        # Clip to ylim so extreme early-layer spikes don't compress the view
         y_plot = np.clip(y_vals, ylim[0], ylim[1])
         ax.plot(sub['layer'].values[valid], y_plot[valid],
                 color=info['color'], lw=1.8, label=info['label'],
@@ -583,7 +552,6 @@ ax_tr.legend(fontsize=6.5, framealpha=0.9, loc='upper left',
              handles=[plt.Line2D([], [], color='#E53935', ls=':', lw=1.2,
                                  label=f'Q-only baseline ({r2_question_baseline:.3f})')])
 
-# Bottom: residualized T3 probe
 ax_bot.set_facecolor('#FAFAFA')
 for mk, info in PROBE_MODELS.items():
     sub = df[df['model'] == mk].sort_values('layer')

@@ -17,7 +17,6 @@ def nvas(row):
 
 mt['nvas'] = mt.apply(nvas, axis=1)
 
-# Load question text if available
 qpath = os.path.join(BASE, 'questions.csv')
 qpath2 = os.path.join(BASE, 'data', 'questions.csv')
 qpath3 = os.path.join(BASE, 'results', 'questions.csv')
@@ -30,7 +29,6 @@ for p in [qpath, qpath2, qpath3]:
         break
 
 if q_df is None:
-    # Try to find any CSV with question text
     import glob
     csvs = glob.glob(os.path.join(BASE, '**/*.csv'), recursive=True)
     for c in csvs:
@@ -41,13 +39,9 @@ if q_df is None:
                 print('Columns:', tmp.columns.tolist())
         except: pass
 
-# Find T3 questions with interesting behavior
-# 1. High refusal rate in Persona but answered in Third
-# 2. High human WVS value (interesting cultural question)
 t3 = mt[mt['tier']==3].copy()
 t3['human_mean_round'] = t3['human_mean'].round(1)
 
-# Per question: refusal rate by framing, mean NVAS by framing
 q_stats = []
 for qid in t3['question_id'].unique():
     sub = t3[t3['question_id']==qid]
@@ -64,11 +58,9 @@ for qid in t3['question_id'].unique():
                         'vmin':vm,'vmax':vx,'delta_ref':ref_th-ref_p,'delta_nvas':nv_th-nv_p})
 qs = pd.DataFrame(q_stats)
 
-# Best examples: high ref in persona, low in third, high delta NVAS
-qs['score'] = -qs['delta_ref'] + qs['delta_nvas'].fillna(0)  # high = good example
+qs['score'] = -qs['delta_ref'] + qs['delta_nvas'].fillna(0)
 top = qs.sort_values('score', ascending=False).head(50)
 
-# Select diverse countries + questions
 examples = []
 seen_qids = set()
 for _, row in top.iterrows():
@@ -76,9 +68,7 @@ for _, row in top.iterrows():
     if row['qid'] in seen_qids: continue
     seen_qids.add(row['qid'])
     qid, country = row['qid'], row['country']
-    # Get actual model responses
     q_sub = t3[(t3['question_id']==qid) & (t3['country']==country)]
-    # Find a model that refuses in Persona but answers in Third
     model_ex = None
     for mk in ['olmo_3_7b_instruct','tulu_3_8b_dpo','aya_expanse_8b','allam_7b_instruct','gpt_5']:
         p_sub  = q_sub[(q_sub['model']==mk)&(q_sub['sheet']=='Personalization')]
@@ -94,7 +84,6 @@ for _, row in top.iterrows():
                 model_ex = {'model':mk,'ref_p':ref_p,'ext_p':ext_p,'ref_th':ref_th,'ext_th':ext_th,'ext_nm':ext_nm}
                 break
     if model_ex is None:
-        # Just take any response pair
         for mk in q_sub['model'].unique():
             p_sub  = q_sub[(q_sub['model']==mk)&(q_sub['sheet']=='Personalization')]
             th_sub = q_sub[(q_sub['model']==mk)&(q_sub['sheet']=='Third')]
@@ -120,7 +109,6 @@ ex_df = pd.DataFrame(examples)
 print('\nQualitative examples found:')
 print(ex_df[['qid','country','human_mean','scale','ref_persona','ref_third','nvas_third']].to_string())
 
-# Load question texts from tiers.csv
 tiers_csv_path = os.path.join(BASE, 'tiers.csv')
 question_texts = {}
 try:
@@ -141,18 +129,15 @@ def short_snippet(qid, max_len=55):
     text = question_texts.get(int(qid) if str(qid).isdigit() else qid, '')
     if not text or text == 'nan':
         return f'Q{qid}'
-    # Strip leading "Please indicate ... " boilerplate
     for prefix in ["Please indicate ", "Please tell ", "Using the scale", "How ", "Do you ", "Would you "]:
         if text.startswith(prefix):
             text = text[len(prefix):]
             break
-    # Find a natural cut
     if len(text) > max_len:
         cut = text[:max_len].rfind(' ')
         text = text[:cut if cut > 20 else max_len] + '…'
     return latex_escape(text)
 
-# Generate LaTeX table
 latex_rows = []
 for ex in examples[:6]:
     qid_str = ex['qid']

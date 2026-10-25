@@ -21,7 +21,6 @@ def nvas_f(row):
 mt_acc = mt[~mt['refusal']].copy()
 mt_acc['nvas'] = mt_acc.apply(nvas_f, axis=1)
 
-# Model family classification
 BASE_MODELS = {'olmo_3_7b_base','olmo_3_32b_base','llama_3.1_8b_base'}
 MENA_MODELS = {'allam_7b_instruct','fanar_1_9b_instruct','jais_2_8b_chat','aya_expanse_8b','aya_expanse_32b'}
 FRONTIER    = {'gpt4o_mini','gpt_5'}
@@ -39,7 +38,6 @@ def scale_type(row):
     if r <= 9: return 'medium'
     return 'long'
 
-# Prepare full dataset
 full = mt_acc.copy()
 full['nvas'] = full['nvas']
 full = full.dropna(subset=['nvas','tier','lang_family'])
@@ -55,11 +53,9 @@ full = full.dropna(subset=['framing'])
 
 print(f'Regression dataset: {len(full)} rows (accepted responses with NVAS)')
 
-# ── OLS regression with statsmodels ───────────────────────────────────────────
 try:
     import statsmodels.formula.api as smf
 
-    # Main effects model
     formula_main = ('nvas ~ C(tier_cat, Treatment("T1")) '
                     '+ C(framing, Treatment("Persona")) '
                     '+ C(lang_family, Treatment("Arabic")) '
@@ -70,14 +66,12 @@ try:
     print(mod_main.summary().tables[1])
     print(f'R² = {mod_main.rsquared:.4f}  Adj-R² = {mod_main.rsquared_adj:.4f}')
 
-    # Interaction model: tier × framing
     formula_int = ('nvas ~ C(tier_cat, Treatment("T1")) * C(framing, Treatment("Persona")) '
                    '+ C(lang_family, Treatment("Arabic")) '
                    '+ C(model_fam, Treatment("instruct")) '
                    '+ C(scale_type, Treatment("medium"))')
     mod_int = smf.ols(formula_int, data=full).fit()
     print('\n=== OLS + tier×framing interaction ===')
-    # Print just the interaction terms
     coefs = mod_int.params
     pvals = mod_int.pvalues
     ses   = mod_int.bse
@@ -88,14 +82,12 @@ try:
     for k, c, s, p in sorted(inter, key=lambda x: abs(x[1]), reverse=True):
         print(f'  {k:<58} {c:>8.4f} {s:>6.4f} {p:>8.4f}')
 
-    # Save coefficient table
     coef_df = pd.DataFrame({'coef': mod_int.params, 'se': mod_int.bse,
                             'pval': mod_int.pvalues, 'ci_low': mod_int.conf_int()[0],
                             'ci_high': mod_int.conf_int()[1]})
     coef_df.to_csv(os.path.join(RESULTS, 'gap6_regression_coefs.csv'))
     print('\nSaved: gap6_regression_coefs.csv')
 
-    # ── Forest plot of key coefficients ───────────────────────────────────────
     key_terms = {k: v for k, v in coefs.items()
                  if any(x in k for x in ['T2','T3','Third','Persona_Nat','NM','mena','frontier','Arabic','Turkish'])}
     key_terms = dict(sorted(key_terms.items(), key=lambda x: x[1], reverse=True))
@@ -125,7 +117,6 @@ try:
     fig.savefig(out, bbox_inches='tight', dpi=200); plt.close(fig)
     print(f'Saved: {out}')
 
-    # Logistic regression for refusal
     print('\n=== Logistic regression for refusal ===')
     ref_data = mt[mt['sheet'].isin(['Personalization','Third'])].copy()
     ref_data['tier_cat']  = ref_data['tier'].map({1:'T1',2:'T2',3:'T3'})
@@ -146,7 +137,6 @@ try:
 
 except ImportError:
     print('statsmodels not available, using scipy OLS')
-    # Simple scipy OLS as fallback
     from scipy import stats as sc_stats
     mt_t3 = mt_acc[mt_acc['tier']==3].dropna(subset=['nvas'])
     mt_t2 = mt_acc[mt_acc['tier']==2].dropna(subset=['nvas'])

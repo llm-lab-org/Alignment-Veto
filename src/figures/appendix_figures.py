@@ -68,9 +68,6 @@ def fam_type(m):
              'tulu_3_8b_sft','tulu_3_8b_dpo'): return 'train'
     return 'instruct'
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 1. gating_vs_erasing_pipeline.pdf
-# ─────────────────────────────────────────────────────────────────────────────
 print('=== 1. gating_vs_erasing_pipeline ===')
 
 OLMO7  = ['olmo_3_7b_base',  'olmo_3_7b_sft',  'olmo_3_7b_dpo',  'olmo_3_7b_instruct']
@@ -109,7 +106,6 @@ for panel_i, (ax, metric_col, ylabel, title_sfx) in enumerate([
         xs = range(len(avail))
         ax.plot(xs, vals, marker='o', color=color, lw=2.2, label=name, ms=7)
         ax.fill_between(xs, los, his, alpha=0.15, color=color)
-        # Map stage position to X_LABELS
         x_lbls_avail = []
         for s in avail:
             idx = stages.index(s)
@@ -129,9 +125,6 @@ out = os.path.join(RESULTS, 'gating_vs_erasing_pipeline.pdf')
 fig.savefig(out, bbox_inches='tight', dpi=200); plt.close(fig)
 print(f'  Saved: {out}')
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 2. flagship_gating_scatter.pdf
-# ─────────────────────────────────────────────────────────────────────────────
 print('=== 2. flagship_gating_scatter ===')
 
 all_models = sorted(refusal_df['model'].unique())
@@ -171,7 +164,6 @@ if not np.isnan(mean_t1_nvas):
                label=f'Mean T1 accepted NVAS ({mean_t1_nvas:.3f})')
 ax.axvline(0, color='#555', lw=0.8, ls='--', alpha=0.4)
 
-# Jitter offsets to avoid label overlap
 label_offsets = {
     'OLMo-7B-Base': (-5, 6), 'OLMo-7B-SFT': (5, 4), 'OLMo-7B-DPO': (5, -9),
     'OLMo-7B-IT': (5, 4), 'OLMo-32B-Base': (-5, 6), 'OLMo-32B-IT': (5, 4),
@@ -204,25 +196,19 @@ out = os.path.join(RESULTS, 'flagship_gating_scatter.pdf')
 fig.savefig(out, bbox_inches='tight', dpi=200); plt.close(fig)
 print(f'  Saved: {out}')
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 3. suppression_cost.pdf
-# ─────────────────────────────────────────────────────────────────────────────
 print('=== 3. suppression_cost ===')
 
-# accepted T3 NVAS
 acc_nvas = nvas_df[nvas_df['tier']==3][['model','nvas']].rename(columns={'nvas':'acc_nvas'})
-# EV-NVAS on refused T3: accepted_nvas + suppression_index
 sup_t3 = supp_idx[supp_idx['tier']==3][['model','suppression_index','ci_lo','ci_hi']]
 cost_df = acc_nvas.merge(sup_t3, on='model', how='inner')
 cost_df['ev_nvas_refused'] = cost_df['acc_nvas'] + cost_df['suppression_index']
-cost_df['cost'] = cost_df['suppression_index']  # EV-NVAS(refused) - acc_nvas
+cost_df['cost'] = cost_df['suppression_index']
 cost_df['label'] = cost_df['model'].map(LABEL_MAP).fillna(cost_df['model'])
 cost_df = cost_df.sort_values('cost', ascending=False).reset_index(drop=True)
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6.5))
 fig.patch.set_facecolor('white')
 
-# Left panel: scatter accepted NVAS vs EV-NVAS on refused rows
 lim_vals = []
 for _, r in cost_df.iterrows():
     lim_vals.extend([r['acc_nvas'], r['ev_nvas_refused']])
@@ -251,7 +237,6 @@ ax1.text(0.04, 0.97, f'{n_above}/{len(cost_df)} above diagonal',
          transform=ax1.transAxes, fontsize=8, va='top',
          bbox=dict(boxstyle='round,pad=0.3', facecolor='white', edgecolor='#aaa', alpha=0.9))
 
-# Right panel: per-model suppression cost bar chart, sorted descending
 ax2.set_facecolor('#FAFAFA')
 colors_right = [fam_color(m) for m in cost_df['model']]
 ys = range(len(cost_df))
@@ -275,12 +260,8 @@ out = os.path.join(RESULTS, 'suppression_cost.pdf')
 fig.savefig(out, bbox_inches='tight', dpi=200); plt.close(fig)
 print(f'  Saved: {out}')
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 4. size_vs_wvs_lift.pdf
-# ─────────────────────────────────────────────────────────────────────────────
 print('=== 4. size_vs_wvs_lift ===')
 
-# Parameter counts in billions
 PARAM_B = {
     'llama_3.1_8b_base':      8.0,
     'llama_3.1_8b_instruct':  8.0,
@@ -298,7 +279,7 @@ PARAM_B = {
     'gemma_3_4b_it':          4.0,
     'gemma_3_12b_it':         12.0,
     'gemma_3_27b_it':         27.0,
-    'gpt4o_mini':             8.0,   # approximate
+    'gpt4o_mini':             8.0,
     'qwen2.5_7b_instruct':    7.0,
     'qwen3_4b_instruct':      4.0,
     'qwen3_30b_a3b_instruct': 30.0,
@@ -307,11 +288,8 @@ PARAM_B = {
     'allam_7b_instruct':      7.0,
     'fanar_1_9b_instruct':    9.0,
     'jais_2_8b_chat':         8.0,
-    # gpt_5 excluded (unknown size)
 }
 
-# WVS mass lift from exp3_suppression at threshold=0.75, tier=3
-# lift = pool_mass - 0.25 (uniform baseline for 4-option scale)
 wvs_sub = supp_df[(supp_df['tier']==3) & (supp_df['threshold']==0.75)][['model','pool_mass']]
 wvs_sub = wvs_sub.copy()
 wvs_sub['wvs_lift'] = wvs_sub['pool_mass'] - 0.25
@@ -343,7 +321,6 @@ for _, r in size_df.iterrows():
 ax.axhline(0, color='#555', lw=0.8, ls='--', alpha=0.5,
            label='Uniform null (lift = 0)')
 
-# Spearman correlation
 valid = size_df.dropna(subset=['params_b','wvs_lift'])
 if len(valid) > 3:
     rho, pval = stats.spearmanr(np.log10(valid['params_b']), valid['wvs_lift'])

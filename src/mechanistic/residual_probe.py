@@ -27,7 +27,6 @@ MODELS = {
 
 mt = pd.read_pickle(os.path.join(RESULTS, 'master_table.pkl'))
 
-# ── Compute baseline: what does question_id alone explain? ───────────────────
 from sklearn.preprocessing import OneHotEncoder
 sub_unique = mt[['question_id','country','human_mean','vmin','vmax']].dropna().drop_duplicates(
     subset=['question_id','country'])
@@ -41,11 +40,9 @@ y_all = sub_unique['y_norm'].values
 r2_question_baseline = cross_val_score(Ridge(alpha=1.0), Xq, y_all, cv=5, scoring='r2').mean()
 print(f'Question-only baseline R²: {r2_question_baseline:.4f}')
 
-# ── Per-question mean for residualization ────────────────────────────────────
 q_means = sub_unique.groupby('question_id')['y_norm'].mean().to_dict()
 print(f'Computed per-question means for {len(q_means)} questions')
 
-# ── Behavioral NVAS residual (how much better is model output vs question mean?) ─
 def nvas_f(row):
     if pd.isna(row['extracted']) or pd.isna(row['human_mean']): return np.nan
     d = row['vmax'] - row['vmin']
@@ -53,7 +50,6 @@ def nvas_f(row):
 
 mt['nvas'] = mt.apply(nvas_f, axis=1)
 
-# ── Main probing loop ─────────────────────────────────────────────────────────
 all_rows = []
 
 for mk, info in MODELS.items():
@@ -69,7 +65,6 @@ for mk, info in MODELS.items():
     N = min(len(acts), len(meta))
     acts = acts[:N]; meta = meta.iloc[:N].reset_index(drop=True)
 
-    # Join human_mean
     mt_sub = mt[['question_id','country','human_mean','vmin','vmax']].drop_duplicates(
         subset=['question_id','country']).rename(columns={'vmin':'wvs_vmin','vmax':'wvs_vmax'})
     meta2 = meta.merge(mt_sub, left_on=['qid','country'], right_on=['question_id','country'], how='left')
@@ -81,7 +76,6 @@ for mk, info in MODELS.items():
     with np.errstate(invalid='ignore', divide='ignore'):
         y_total = np.where(denom > 0, (hm - vm) / denom, np.nan).astype(np.float32)
 
-    # Residualized target: subtract per-question mean
     qids = meta2['question_id'].values
     q_mean_arr = np.array([q_means.get(q, np.nan) for q in qids], dtype=np.float32)
     y_resid = (y_total - q_mean_arr).astype(np.float32)
@@ -98,7 +92,6 @@ for mk, info in MODELS.items():
     for layer in layer_sample:
         X = acts[:N, layer, :]
 
-        # Total probe (original)
         mask_t = valid_total
         if mask_t.sum() >= 30:
             Xs = StandardScaler().fit_transform(X[mask_t].astype(np.float32))
@@ -106,7 +99,6 @@ for mk, info in MODELS.items():
         else:
             r2_tot = np.nan
 
-        # T3 total probe
         mask_t3 = valid_total & (tiers == 3)
         if mask_t3.sum() >= 10:
             Xs3 = StandardScaler().fit_transform(X[mask_t3].astype(np.float32))
@@ -115,7 +107,6 @@ for mk, info in MODELS.items():
         else:
             r2_t3_tot = np.nan
 
-        # Residualized probe
         mask_r = valid_resid
         if mask_r.sum() >= 30:
             Xsr = StandardScaler().fit_transform(X[mask_r].astype(np.float32))
@@ -123,7 +114,6 @@ for mk, info in MODELS.items():
         else:
             r2_res = np.nan
 
-        # T3 residualized probe
         mask_r3 = valid_resid & (tiers == 3)
         if mask_r3.sum() >= 10:
             Xsr3 = StandardScaler().fit_transform(X[mask_r3].astype(np.float32))
@@ -148,7 +138,6 @@ for mk, info in MODELS.items():
 df = pd.DataFrame(all_rows)
 df.to_csv(os.path.join(RESULTS, 'fix1_residual_probe_results.csv'), index=False)
 
-# ── Figure ───────────────────────────────────────────────────────────────────
 from matplotlib.gridspec import GridSpec
 fig = plt.figure(figsize=(13, 9))
 fig.patch.set_facecolor('white')
@@ -188,7 +177,6 @@ ax_tr.legend(fontsize=6.5, framealpha=0.9, loc='upper left',
              handles=[plt.Line2D([],[],color='#E53935',ls=':',lw=1.2,
                                   label=f'Q-only baseline ({r2_question_baseline:.3f})')])
 
-# Bottom panel: residualized T3 probe (full width)
 ax_bot.set_facecolor('#FAFAFA')
 for mk, info in MODELS.items():
     sub = df[df['model'] == mk].sort_values('layer')
@@ -221,7 +209,6 @@ out = os.path.join(RESULTS, 'fix1_residual_probe.pdf')
 fig.savefig(out, bbox_inches='tight', dpi=200); plt.close(fig)
 print(f'\nSaved: {out}')
 
-# ── Summary table ─────────────────────────────────────────────────────────────
 best_df = df.loc[df.groupby('model')['r2_t3_resid'].idxmax()]
 print('\n=== Residualized Probe Summary (best layer per model) ===')
 print(f'Question-only baseline R²: {r2_question_baseline:.4f}')

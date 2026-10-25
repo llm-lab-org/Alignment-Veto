@@ -61,7 +61,6 @@ for mk in sorted(mt['model'].unique()):
 
 df = pd.DataFrame(rows)
 
-# Safety tax EN vs Native
 print('=== Safety tax (T3-T1 refusal) by framing language ===')
 for (sh_en, sh_nat, name_en, name_nat) in PAIRS:
     t3_en = mt[(mt['sheet']==sh_en)&(mt['tier']==3)]['refusal'].mean()
@@ -75,9 +74,7 @@ print('\n=== T3 NVAS shift: Native − EN ===')
 t3_sub = df[(df['tier']==3) & (df['framing_pair']=='Perso')]
 print(t3_sub[['label','nvas_en','nvas_nat','delta_nvas','delta_ref']].sort_values('delta_nvas', ascending=False).round(3).to_string())
 
-# ── FIGURE: 4-panel per framing-pair (refusal + NVAS for T3) ─────────────────
 instruct_models = df['label'].unique().tolist()
-# Keep only models with non-trivial safety tax OR interesting behaviour
 keep = [m for m in instruct_models if LABEL_MAP.get(
     [k for k,v in LABEL_MAP.items() if v==m][0] if any(v==m for v in LABEL_MAP.values()) else '', m, ) != '']
 models_show = sorted(instruct_models)
@@ -124,7 +121,6 @@ out = os.path.join(RESULTS, 'gap4_native_framing.pdf')
 fig.savefig(out, bbox_inches='tight', dpi=200); plt.close(fig)
 print(f'\nSaved: {out}')
 
-# Key stats
 t3_acc_en  = mt_acc[(mt_acc['sheet']=='Personalization')&(mt_acc['tier']==3)]['nvas'].mean()
 t3_acc_nat = mt_acc[(mt_acc['sheet']=='Personalization_Diff')&(mt_acc['tier']==3)]['nvas'].mean()
 tax_en  = mt[(mt['sheet']=='Personalization')&(mt['tier']==3)]['refusal'].mean() - \
@@ -134,7 +130,6 @@ tax_nat = mt[(mt['sheet']=='Personalization_Diff')&(mt['tier']==3)]['refusal'].m
 print(f'\nOverall: T3 NVAS EN={t3_acc_en:.3f} vs Native={t3_acc_nat:.3f}  (Δ={t3_acc_nat-t3_acc_en:+.3f})')
 print(f'Safety tax EN={tax_en:.3f} vs Native={tax_nat:.3f}  (Δ={tax_nat-tax_en:+.3f})')
 
-# FANAR exception highlight
 fanar_t3 = df[(df['model']=='fanar_1_9b_instruct') & (df['tier']==3) & (df['framing_pair']=='Perso')]
 if len(fanar_t3):
     print(f'\nFANAR exception: refusal EN={fanar_t3["refusal_en"].values[0]:.3f} → '

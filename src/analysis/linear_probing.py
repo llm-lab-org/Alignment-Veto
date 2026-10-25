@@ -34,7 +34,6 @@ def nvas_f(row):
 
 mt = pd.read_pickle(os.path.join(RESULTS, 'master_table.pkl'))
 
-# Get behavioral NVAS (accepted, Persona EN) per model
 mt_acc = mt[~mt['refusal']].copy()
 mt_acc['nvas'] = mt_acc.apply(nvas_f, axis=1)
 
@@ -59,17 +58,15 @@ for mk, info in MODELS.items():
         continue
 
     print(f'\n--- {info["label"]} ---', flush=True)
-    acts = np.load(acts_path, mmap_mode='r')   # (N, L, D)
+    acts = np.load(acts_path, mmap_mode='r')
     meta = pd.read_csv(meta_path)
     N    = min(len(acts), len(meta))
     acts = acts[:N]; meta = meta.iloc[:N].reset_index(drop=True)
 
-    # Join human_mean from master_table (question_id, country → human_mean)
     mt_sub = mt[['question_id','country','human_mean','vmin','vmax']].drop_duplicates(
         subset=['question_id','country'])
     mt_sub = mt_sub.rename(columns={'vmin':'wvs_vmin','vmax':'wvs_vmax'})
     meta2  = meta.merge(mt_sub, left_on=['qid','country'], right_on=['question_id','country'], how='left')
-    # Normalize human_mean to [0,1] range
     hm = meta2['human_mean'].values.astype(np.float32)
     vm = meta2['wvs_vmin'].values.astype(np.float32)
     vx = meta2['wvs_vmax'].values.astype(np.float32)
@@ -77,33 +74,29 @@ for mk, info in MODELS.items():
     with np.errstate(invalid='ignore', divide='ignore'):
         y_norm = np.where(denom > 0, (hm - vm) / denom, np.nan).astype(np.float32)
 
-    tiers  = meta['tier'].values   # tier comes from mix_meta (already there)
+    tiers  = meta['tier'].values
     valid  = ~np.isnan(hm) & ~np.isnan(y_norm)
 
     N_L = acts.shape[1]
     print(f'  Activations: {acts.shape}  valid targets: {valid.sum()}', flush=True)
 
-    # Sample layers for efficiency: every 2nd layer
     layer_sample = list(range(0, N_L, max(1, N_L//20)))
     if N_L-1 not in layer_sample: layer_sample.append(N_L-1)
 
     for layer in layer_sample:
         X = acts[:N, layer, :][valid].astype(np.float32)
-        y = y_norm[valid]   # predict normalized position on scale
+        y = y_norm[valid]
         t = tiers[valid]
 
         if X.shape[0] < 30: continue
 
-        # Scale
         sc = StandardScaler()
         Xs = sc.fit_transform(X)
 
-        # Full probe
         probe = Ridge(alpha=1.0)
         cv_r2 = cross_val_score(probe, Xs, y, cv=5, scoring='r2')
         r2_all = float(cv_r2.mean())
 
-        # T3-only probe
         t3_mask = t == 3
         if t3_mask.sum() >= 10:
             cv_r2_t3 = cross_val_score(probe, Xs[t3_mask], y[t3_mask], cv=min(5,t3_mask.sum()//2), scoring='r2')
@@ -111,7 +104,6 @@ for mk, info in MODELS.items():
         else:
             r2_t3 = np.nan
 
-        # T2-only probe
         t2_mask = t == 2
         if t2_mask.sum() >= 20:
             cv_r2_t2 = cross_val_score(probe, Xs[t2_mask], y[t2_mask], cv=5, scoring='r2')
@@ -133,7 +125,6 @@ df = pd.DataFrame(all_rows)
 df.to_csv(os.path.join(RESULTS, 'gap2_probing_results.csv'), index=False)
 print('\nSaved: gap2_probing_results.csv')
 
-# ── Figure 1: Probing R² vs layer, colored by model/stage ────────────────────
 fig, axes = plt.subplots(1, 3, figsize=(15, 5))
 fig.patch.set_facecolor('white')
 
@@ -167,7 +158,6 @@ out1 = os.path.join(RESULTS, 'gap2_probing_layers.pdf')
 fig.savefig(out1, bbox_inches='tight', dpi=200); plt.close(fig)
 print(f'Saved: {out1}')
 
-# ── Figure 2: Best-layer R² vs behavioral NVAS (knowledge vs output) ──────────
 best_layer_df = df.loc[df.groupby('model')['r2_all'].idxmax()]
 best_t3_df    = df.loc[df.groupby('model')['r2_t3'].idxmax()]
 
@@ -193,7 +183,6 @@ for ax_i, (bd, title_str, xlab) in enumerate([
     ax.set_title(title_str, fontsize=9.5)
     ax.grid(lw=0.3, alpha=0.4, color='#ccc')
 
-# Key insight annotation
 fig2.text(0.5, -0.02,
           'High probe R² with lower behavioral NVAS = cultural knowledge present in representations but suppressed in output',
           ha='center', fontsize=9, color='#555', style='italic')
@@ -206,7 +195,6 @@ out2 = os.path.join(RESULTS, 'gap2_probing_vs_nvas.pdf')
 fig2.savefig(out2, bbox_inches='tight', dpi=200); plt.close(fig2)
 print(f'Saved: {out2}')
 
-# Print summary
 print('\n=== Probing Summary ===')
 print(best_layer_df[['label','layer','r2_all','r2_t3','beh_t3']].round(3).to_string())
 print('\nDone.')

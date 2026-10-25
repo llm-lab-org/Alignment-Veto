@@ -35,7 +35,6 @@ LANG_FAMILY = {
     'Turkish': ['Turkey'],
 }
 
-# Models to probe (pick small ones that fit in GPU memory)
 PROBE_MODELS = {
     'olmo_3_7b_base':     'allenai/OLMo-2-1124-7B',
     'olmo_3_7b_instruct': 'allenai/OLMo-2-1124-7B-Instruct',
@@ -83,13 +82,11 @@ def extract_activations_batch(model, tokenizer, prompts, device, batch_size=8, m
             enc = tokenizer(batch, return_tensors='pt', padding=True,
                             truncation=True, max_length=512).to(device)
             out = model(**enc, output_hidden_states=True)
-            # hidden_states: (n_layers+1) × (batch × seq_len × hidden_dim)
-            # Take last token position, all layers
             batch_hidden = torch.stack(
                 [hs[:, -1, :] for hs in out.hidden_states], dim=1
-            ).float().cpu().numpy()  # (batch, n_layers+1, hidden_dim)
+            ).float().cpu().numpy()
             all_hidden.append(batch_hidden)
-    return np.concatenate(all_hidden, axis=0)  # (N, n_layers+1, hidden_dim)
+    return np.concatenate(all_hidden, axis=0)
 
 def build_probe_dataset(model_name, hf_name, human_df, tiers_df):
     """
@@ -112,7 +109,6 @@ def build_probe_dataset(model_name, hf_name, human_df, tiers_df):
     )
     model.eval()
 
-    # Build prompts using Observer framing (English) for all (country, question)
     tiers_df_idx = tiers_df.set_index('question_id')
     prompts, targets, meta = [], [], []
 
@@ -122,7 +118,7 @@ def build_probe_dataset(model_name, hf_name, human_df, tiers_df):
     for _, row in third_df.iterrows():
         qid = int(row['question_id'])
         if qid not in tiers_df_idx.index: continue
-        q_text = tiers_df_idx.loc[qid, 'No Mention']  # the question text
+        q_text = tiers_df_idx.loc[qid, 'No Mention']
         vmin = float(tiers_df_idx.loc[qid, 'Min'])
         vmax = float(tiers_df_idx.loc[qid, 'MAX'])
         tier = int(tiers_df_idx.loc[qid, 'Tier'])
@@ -135,7 +131,6 @@ def build_probe_dataset(model_name, hf_name, human_df, tiers_df):
             h_mean = human_df.loc[qid, f'{country}_mean']
             if pd.isna(h_mean): continue
 
-            # Observer prompt
             prompt = (f"You are observing people from {country}. "
                       f"Based on your knowledge of {country}'s culture and values, "
                       f"please answer the following survey question as they typically would:\n"
@@ -149,10 +144,8 @@ def build_probe_dataset(model_name, hf_name, human_df, tiers_df):
 
     print(f'  Total prompts: {len(prompts)}')
 
-    # Extract activations in batches
     print(f'  Extracting activations...')
     activations = extract_activations_batch(model, tokenizer, prompts, device, batch_size=16)
-    # activations: (N, n_layers, hidden_dim)
     print(f'  Activations shape: {activations.shape}')
 
     meta_df = pd.DataFrame(meta)
@@ -171,8 +164,7 @@ def train_probes(activations, targets, meta_df):
     results = []
     best_layer_scores = {}
 
-    # Layer selection: validate on a held-out country
-    val_countries = COUNTRIES[:4]  # hold out 4 countries for layer selection
+    val_countries = COUNTRIES[:4]
     train_mask = ~meta_df['country'].isin(val_countries).values
     val_mask   =  meta_df['country'].isin(val_countries).values
 
@@ -192,7 +184,6 @@ def train_probes(activations, targets, meta_df):
     best_layer = int(np.argmax(layer_scores))
     print(f'  Best layer: {best_layer} (val R²={layer_scores[best_layer]:.3f})')
 
-    # Country generalization: LOGO
     logo = LeaveOneGroupOut()
     country_scores = []
     for train_idx, test_idx in logo.split(np.arange(n_samples), groups=countries):
@@ -210,17 +201,14 @@ def train_probes(activations, targets, meta_df):
                                 'lang_family': lang_fam[test_idx[0]]})
     country_df = pd.DataFrame(country_scores)
 
-    # Per-language breakdown
     lang_df = country_df.groupby('lang_family')['r2'].agg(['mean','std']).reset_index()
 
-    # Dataset-prior baseline: predict mean of training targets
     logo_scores_baseline = []
     for train_idx, test_idx in logo.split(np.arange(n_samples), groups=countries):
         baseline = np.mean(targets[train_idx])
         preds = np.full(len(test_idx), baseline)
         logo_scores_baseline.append(r2_score(targets[test_idx], preds))
 
-    # Prompting baseline: use the model's own Third-sheet extracted answers
     return {
         'best_layer': best_layer,
         'layer_scores': layer_scores,
@@ -247,7 +235,6 @@ def run_experiment_4():
             result = train_probes(activations, targets, meta_df)
             all_results[model_name] = result
 
-            # Plot layer scores
             fig, axes = plt.subplots(1, 2, figsize=(12, 5))
             ax = axes[0]
             ax.plot(result['layer_scores'], color='steelblue', lw=2)
@@ -287,7 +274,6 @@ def run_experiment_4():
             import traceback; traceback.print_exc()
             continue
 
-    # Summary table
     if all_results:
         rows = []
         for model_name, res in all_results.items():
@@ -303,7 +289,6 @@ def run_experiment_4():
         summary = pd.DataFrame(rows)
         summary.to_csv(os.path.join(RESULTS, 'exp4_probing_results.csv'), index=False)
 
-        # LaTeX table: per-language breakdown
         lang_table = summary.groupby(['model','lang_family'])['r2_logo'].agg(['mean','std']).round(3)
         print('\nPer-language R² (LOGO):')
         print(lang_table)

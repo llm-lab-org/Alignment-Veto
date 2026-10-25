@@ -12,13 +12,11 @@ import warnings; warnings.filterwarnings('ignore')
 BASE    = os.environ.get("ALIGNMENT_VETO_ROOT", "data")
 RESULTS = os.path.join(BASE, 'results')
 
-# ── Load question text and tier classification ────────────────────────────────
 tiers_df = pd.read_csv(os.path.join(BASE, 'tiers.csv'))
 t3_df    = tiers_df[tiers_df['Tier'] == 3][['question_id', 'No Mention']].copy()
 t3_df.columns = ['question_id', 'text']
 print(f'T3 questions: {len(t3_df)}')
 
-# ── Keyword-based topic assignment ────────────────────────────────────────────
 def assign_topic(text):
     t = text.lower()
     if any(w in t for w in ['homosexual', 'gay', 'same-sex', 'lgb']):
@@ -46,14 +44,12 @@ print('\nAll T3 questions with topics:')
 for _, row in t3_df.iterrows():
     print(f"  Q{row['question_id']} [{row['topic']}]: {row['text'][:90]}")
 
-# ── Load failure mode data from Gap B ─────────────────────────────────────────
 q_stats = pd.read_csv(os.path.join(RESULTS, 'gapB_t3_question_taxonomy.csv'))
 q_stats = q_stats.merge(t3_df[['question_id', 'topic', 'text']], on='question_id', how='left')
 q_stats['topic'] = q_stats['topic'].fillna('Other')
 q_stats.to_csv(os.path.join(RESULTS, 'fix3_t3_topics.csv'), index=False)
 print(f'\nSaved: fix3_t3_topics.csv')
 
-# ── Updated failure-mode figure with topic colors ─────────────────────────────
 TOPIC_COLORS = {
     'LGBTQ+':              '#E53935',
     'Gender Equality':     '#8E24AA',
@@ -85,7 +81,6 @@ for ax_i, (ax, title_suffix) in enumerate(zip(axes, ['by Failure Mode', 'by Topi
     ax.set_facecolor('#FAFAFA')
 
     if ax_i == 0:
-        # Original failure mode coloring
         mode_colors = {
             'Suppressed':          '#E67C13',
             'Double failure':      '#B71C1C',
@@ -110,7 +105,6 @@ for ax_i, (ax, title_suffix) in enumerate(zip(axes, ['by Failure Mode', 'by Topi
                             (row['refusal_rate'], row['nvas_when_answered']),
                             fontsize=6.5, xytext=(3, 2), textcoords='offset points', color='#333')
     else:
-        # Topic coloring
         for topic, grp in q_stats.groupby('topic'):
             ax.scatter(grp['refusal_rate'], grp['nvas_when_answered'],
                        color=TOPIC_COLORS.get(topic, '#888'),
@@ -126,7 +120,6 @@ for ax_i, (ax, title_suffix) in enumerate(zip(axes, ['by Failure Mode', 'by Topi
     ax.axvline(REFUSAL_THRESH, color='#aaa', lw=1, ls='--', alpha=0.7)
     ax.axhline(NVAS_THRESH,    color='#aaa', lw=1, ls='--', alpha=0.7)
 
-    # Quadrant labels
     for (tx, ty, label) in [(0.72, 0.88, 'Suppressed\n(knows, hides)'),
                              (0.72, 0.12, 'Double failure'),
                              (0.10, 0.12, 'Representational\nbias'),
@@ -142,7 +135,6 @@ for ax_i, (ax, title_suffix) in enumerate(zip(axes, ['by Failure Mode', 'by Topi
     ax.grid(lw=0.3, alpha=0.4, color='#ccc')
     ax.set_xlim(-0.02, 0.65); ax.set_ylim(0.10, 1.0)
 
-# Add insight annotation
 fig.text(0.5, -0.02,
          'LGBTQ+ questions cluster in top-right (suppressed — refused but accurate when answered).\n'
          'Gender equality questions cluster in lower-left (representational bias — answered but wrong).',
@@ -156,7 +148,6 @@ out = os.path.join(RESULTS, 'fix3_t3_topics.pdf')
 fig.savefig(out, bbox_inches='tight', dpi=200); plt.close(fig)
 print(f'Saved: {out}')
 
-# ── LaTeX topic table for report ───────────────────────────────────────────────
 topic_summary = q_stats.groupby('topic').agg(
     n=('question_id', 'count'),
     mean_refusal=('refusal_rate', 'mean'),

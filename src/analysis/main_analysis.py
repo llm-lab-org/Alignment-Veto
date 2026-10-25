@@ -20,13 +20,11 @@ warnings.filterwarnings('ignore')
 def plog(msg):
     print(msg, flush=True)
 
-# ─── Paths ────────────────────────────────────────────────────────────────────
 BASE     = os.environ.get("ALIGNMENT_VETO_ROOT", "data")
 DATA_DIR = os.path.join(BASE, 'MENA_TRANSLATED_reasoning')
 RESULTS  = os.path.join(BASE, 'results')
 os.makedirs(RESULTS, exist_ok=True)
 
-# ─── Constants ────────────────────────────────────────────────────────────────
 COUNTRIES = ['Algeria','Egypt','Iran','Iraq','Jordan','Kuwait','Lebanon',
              'Libya','Mauritania','Morocco','Palestine','Qatar',
              'Saudi Arabia','Sudan','Tunisia','Turkey']
@@ -66,7 +64,6 @@ plt.rcParams.update({
     'figure.facecolor':'white',
 })
 
-# ─── Helpers ──────────────────────────────────────────────────────────────────
 def safe_parse_probs(x):
     if x is None or (isinstance(x,float) and np.isnan(x)): return {}
     try: return json.loads(str(x).replace("'",'"'))
@@ -114,7 +111,6 @@ def ci_str(obs, lo, hi):
     if np.isnan(obs): return '—'
     return f'{obs:.3f} [{lo:.3f},{hi:.3f}]'
 
-# ─── Data Loading ─────────────────────────────────────────────────────────────
 plog('Loading tiers and human data...')
 TIERS = pd.read_csv(os.path.join(BASE,'tiers.csv'))
 TIERS = TIERS.rename(columns={'No Mention':'question_text'})
@@ -147,14 +143,12 @@ def load_human_data():
 HUMAN = load_human_data()
 plog(f'  Human data: {len(HUMAN)} questions × {len(COUNTRIES)} countries')
 
-# ─── Fast Master Table Builder ─────────────────────────────────────────────────
 def load_no_mention_sheet(sh, model_name, sheet_key):
     """Vectorized extraction for No Mention / No Mention Diff sheets."""
     col_model = XLSX_TO_PREFIX.get(model_name, model_name)
     prefix = f'No Mention_{col_model}'
     qid_col = 'question_id' if 'question_id' in sh.columns else None
 
-    # Assign question IDs
     if qid_col:
         sh = sh.copy()
         sh['_qid'] = sh['question_id'].astype(int)
@@ -162,7 +156,6 @@ def load_no_mention_sheet(sh, model_name, sheet_key):
         sh = sh.copy()
         sh['_qid'] = np.arange(1, len(sh)+1)
 
-    # Filter to questions with no Human Target (neutral questions)
     valid_qids = set(TIERS_IDX[~TIERS_IDX['human_target_flag']].index)
     sh = sh[sh['_qid'].isin(valid_qids)].copy()
 
@@ -184,7 +177,6 @@ def load_no_mention_sheet(sh, model_name, sheet_key):
         'norm_probs':  sh[prb_col].apply(safe_parse_probs).values if prb_col in sh.columns else [{}]*len(sh),
         'human_mean':  np.nan,
     })
-    # Add tier, vmin, vmax from TIERS_IDX
     df_out = df_out.merge(
         TIERS_IDX[['Tier','Min','MAX']].rename(columns={'Tier':'tier','Min':'vmin','MAX':'vmax'}),
         left_on='question_id', right_index=True, how='left')
@@ -215,7 +207,6 @@ def load_country_sheet(sh, model_name, sheet_key):
             'refusal':     sh[ref_col].notna().values if ref_col in sh.columns else np.zeros(len(sh),dtype=bool),
             'norm_probs':  sh[prb_col].apply(safe_parse_probs).values if prb_col in sh.columns else [{}]*len(sh),
         })
-        # Join human data
         h_means = HUMAN[f'{country}_mean'].reindex(c_df['question_id']).values
         h_dists = HUMAN[f'{country}_dist'].reindex(c_df['question_id'])
         h_dists = h_dists.fillna({}).values if hasattr(h_dists,'fillna') else [{}]*len(c_df)
@@ -250,7 +241,6 @@ for i, model_name in enumerate(ALL_MODELS):
             all_parts.append(part)
 
 MASTER = pd.concat(all_parts, ignore_index=True)
-# Ensure types
 MASTER['tier'] = MASTER['tier'].astype(float).astype('Int64')
 MASTER['refusal'] = MASTER['refusal'].astype(bool)
 MASTER['extracted'] = pd.to_numeric(MASTER['extracted'], errors='coerce')
@@ -262,9 +252,6 @@ plog(f'  Models: {MASTER.model.nunique()}, Sheets: {MASTER.sheet.unique()}')
 MASTER.to_pickle(os.path.join(RESULTS,'master_table.pkl'))
 plog('  Saved master_table.pkl')
 
-# ─────────────────────────────────────────────────────────────────────────────
-# EXP 2a — Safety Tax
-# ─────────────────────────────────────────────────────────────────────────────
 plog('\n=== Exp 2a: Safety Tax ===')
 
 def exp2a(master):
@@ -321,13 +308,9 @@ refusal_df, refusal_piv = exp2a(MASTER)
 refusal_df.to_csv(os.path.join(RESULTS,'exp2a_refusal.csv'),index=False)
 plog('Exp 2a done.')
 
-# ─────────────────────────────────────────────────────────────────────────────
-# EXP 2b — NVAS by Tier
-# ─────────────────────────────────────────────────────────────────────────────
 plog('\n=== Exp 2b: NVAS by Tier ===')
 
 def exp2b(master):
-    # Non-refused, country sheets, has human_mean
     sub = master[
         master['sheet'].isin(['Personalization','Third']) &
         ~master['refusal'] &
@@ -374,7 +357,6 @@ def exp2b(master):
     ax2.set_xlabel('NVAS(T3)−NVAS(T1)'); ax2.set_title('NVAS Accuracy Gap')
     fig.tight_layout(); save_fig(fig,'exp2b_nvas_by_tier.pdf')
 
-    # OLMo Tier-3 comparison
     olmo_t3 = df[(df['tier']==3) & df['model'].str.contains('olmo')].copy()
     if len(olmo_t3):
         fig2,ax3=plt.subplots(figsize=(8,4))
@@ -397,9 +379,6 @@ nvas_df, nvas_piv, nvas_detail = exp2b(MASTER)
 nvas_df.to_csv(os.path.join(RESULTS,'exp2b_nvas.csv'),index=False)
 plog('Exp 2b done.')
 
-# ─────────────────────────────────────────────────────────────────────────────
-# EXP 3 — Direction of Suppression
-# ─────────────────────────────────────────────────────────────────────────────
 plog('\n=== Exp 3: Direction of Suppression ===')
 
 def majority_option(probs_dict):
@@ -459,7 +438,6 @@ def exp3(master):
                              'pool_mass':mass_obs,'pool_lo':mass_lo,'pool_hi':mass_hi})
     df = pd.DataFrame(rows)
 
-    # Extended surface forms
     yes_no = {'1','2','3','4','yes','no','agree','disagree',
               'strongly agree','strongly disagree'}
     refused['ext_mass'] = refused['norm_probs'].apply(
@@ -472,7 +450,6 @@ def exp3(master):
         ext_rows.append({'model':model,'tier':int(tier),'ext_mass':obs,'lo':lo,'hi':hi})
     ext_df = pd.DataFrame(ext_rows)
 
-    # Plot
     fig, axes = plt.subplots(1,3,figsize=(18,6))
 
     ax=axes[0]
@@ -503,7 +480,6 @@ def exp3(master):
     ax3.set_ylabel('Digit-token mass fraction'); ax3.set_title('Pool Mass on Digits (Refusals)'); ax3.legend()
     fig.tight_layout(); save_fig(fig,'exp3_suppression.pdf')
 
-    # LaTeX summary
     if len(df):
         summary = df.groupby(['tier','threshold'])['agreement_rate'].mean().reset_index()
         piv_tex = summary.pivot(index='threshold',columns='tier',values='agreement_rate')
@@ -519,9 +495,6 @@ supp_df, supp_ext = exp3(MASTER)
 if len(supp_df): supp_df.to_csv(os.path.join(RESULTS,'exp3_suppression.csv'),index=False)
 plog('Exp 3 done.')
 
-# ─────────────────────────────────────────────────────────────────────────────
-# CONSISTENCY METRICS
-# ─────────────────────────────────────────────────────────────────────────────
 plog('\n=== Consistency Metrics (FCS, CLCS, SPD) ===')
 
 def compute_consistency(master):
@@ -542,7 +515,6 @@ def compute_consistency(master):
             (master['country']=='NEUTRAL') & ~master['refusal'] & master['extracted'].notna()
         ].set_index('question_id')
 
-        # FCS
         fcs_vals = []
         p_en = sheets.get('Personalization', pd.DataFrame())
         o_en = sheets.get('Third', pd.DataFrame())
@@ -553,7 +525,6 @@ def compute_consistency(master):
                 vm,vx = float(p_en.loc[qid,'vmin']), float(p_en.loc[qid,'vmax'])
                 if pd.notna(p) and pd.notna(o): fcs_vals.append(1-d(p,o,vm,vx))
 
-        # CLCS
         clcs_vals = []
         p_nat = sheets.get('Personalization_Diff', pd.DataFrame())
         if len(p_en) and len(p_nat):
@@ -563,7 +534,6 @@ def compute_consistency(master):
                 vm,vx = float(p_en.loc[qid,'vmin']), float(p_en.loc[qid,'vmax'])
                 if pd.notna(pe) and pd.notna(pn): clcs_vals.append(1-d(pe,pn,vm,vx))
 
-        # SPD
         spd_vals = []
         if len(neutral) and len(p_en):
             common = neutral.index.intersection(p_en.index)
@@ -606,9 +576,6 @@ for ax,metric,title in zip(axes,['FCS','CLCS','SPD'],
 fig.tight_layout(); save_fig(fig,'consistency_heatmaps.pdf')
 plog('Consistency metrics done.')
 
-# ─────────────────────────────────────────────────────────────────────────────
-# PCA 7.1 — Human Survey Data
-# ─────────────────────────────────────────────────────────────────────────────
 plog('\n=== PCA 7.1: Human Survey Data ===')
 
 def jsd(p_dict, q_dict):
@@ -626,7 +593,6 @@ def pca71():
         if not np.all(np.isnan(row)):
             mat.append(row); valid_c.append(c)
     mat = np.array(mat)
-    # Drop all-NaN columns (questions with no human data for any country)
     valid_cols = ~np.all(np.isnan(mat), axis=0)
     mat = mat[:, valid_cols]
     col_means = np.nanmean(mat, axis=0)
@@ -668,9 +634,6 @@ def pca71():
 
 pca71()
 
-# ─────────────────────────────────────────────────────────────────────────────
-# PCA 7.2 — LLM Observer English
-# ─────────────────────────────────────────────────────────────────────────────
 plog('=== PCA 7.2: LLM Observer English ===')
 
 def get_country_matrix(master, model, sheet):
@@ -718,9 +681,6 @@ def pca72(master):
 
 pca72(MASTER)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# PCA 7.3 — Native Language Observer
-# ─────────────────────────────────────────────────────────────────────────────
 plog('=== PCA 7.3: Native Language Observer ===')
 
 def pca73(master):
@@ -746,9 +706,6 @@ def pca73(master):
 
 pca73(MASTER)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# PCA 7.4 — Persona + Neutral
-# ─────────────────────────────────────────────────────────────────────────────
 plog('=== PCA 7.4: Persona + Neutral ===')
 
 def pca74(master):
@@ -770,7 +727,6 @@ def pca74(master):
             mat.append(vec)
             fam=[f for f,cs in LANG_FAMILY.items() if country in cs]; fam=fam[0] if fam else 'Other'
             colors.append(fam_col.get(fam,'gray')); labels.append(country[:3])
-        # Neutral
         neut=master[(master['model']==model)&(master['sheet']=='No Mention')&
                     (master['country']=='NEUTRAL')&~master['refusal']&master['extracted'].notna()].set_index('question_id')
         if len(neut)>=30:
@@ -791,9 +747,6 @@ def pca74(master):
 
 pca74(MASTER)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# PCA 7.5 — Neutral Cross-Lingual
-# ─────────────────────────────────────────────────────────────────────────────
 plog('=== PCA 7.5: Cross-Lingual Value Shift ===')
 
 def pca75(master):
@@ -810,7 +763,6 @@ def pca75(master):
             sub=master[(master['model']==model)&(master['sheet']==sheet)&
                        (master['country']=='NEUTRAL')&~master['refusal']&master['extracted'].notna()].set_index('question_id')
             diffs.append((label,sub))
-        # Show mean absolute difference between English and Native
         if len(diffs)==2:
             en_sub,nat_sub=diffs[0][1],diffs[1][1]
             common=en_sub.index.intersection(nat_sub.index)
@@ -829,9 +781,6 @@ def pca75(master):
 pca75(MASTER)
 plog('PCA analyses done.')
 
-# ─────────────────────────────────────────────────────────────────────────────
-# EXP 5 — OLMo & Tulu Ablation
-# ─────────────────────────────────────────────────────────────────────────────
 plog('\n=== Exp 5: Training Ablation ===')
 
 def exp5(refusal_df, nvas_df, supp_df):
@@ -890,7 +839,6 @@ def exp5(refusal_df, nvas_df, supp_df):
     fig.suptitle('Experiment 5: Post-Training Ablation (OLMo 7B, 32B, Tulu)',fontsize=12)
     fig.tight_layout(); save_fig(fig,'exp5_ablation.pdf')
 
-    # LaTeX
     abl_models=OLMO_7B_STAGES+OLMO_32B_STAGES+TULU_STAGES
     abl_models=[m for m in abl_models if m in refusal_df['model'].values]
     ref_piv=refusal_df[refusal_df['model'].isin(abl_models)].pivot(index='model',columns='tier',values='refusal_rate')
@@ -905,33 +853,26 @@ def exp5(refusal_df, nvas_df, supp_df):
 exp5(refusal_df, nvas_df, supp_df)
 plog('Exp 5 done.')
 
-# ─────────────────────────────────────────────────────────────────────────────
-# EXP 10 — Directional SPD
-# ─────────────────────────────────────────────────────────────────────────────
 plog('\n=== Exp 10: Directional SPD ===')
 
 def exp10(master):
-    # Neutral answers
     neutral_all = master[
         (master['sheet']=='No Mention') & (master['country']=='NEUTRAL') &
         ~master['refusal'] & master['extracted'].notna()
     ][['model','question_id','extracted','vmin','vmax']].rename(columns={'extracted':'n_val','vmin':'n_vmin','vmax':'n_vmax'})
 
-    # Persona answers with human mean
     persona_all = master[
         (master['sheet']=='Personalization') & master['human_mean'].notna() &
         ~master['refusal'] & master['extracted'].notna()
     ][['model','country','question_id','tier','extracted','human_mean','vmin','vmax']].rename(
         columns={'extracted':'p_val','vmin':'p_vmin','vmax':'p_vmax'})
 
-    # Observer answers
     observer_all = master[
         (master['sheet']=='Third') & master['human_mean'].notna() &
         ~master['refusal'] & master['extracted'].notna()
     ][['model','country','question_id','tier','extracted','human_mean','vmin','vmax']].rename(
         columns={'extracted':'o_val','vmin':'o_vmin','vmax':'o_vmax'})
 
-    # Merge
     pn = persona_all.merge(neutral_all, on=['model','question_id'], how='inner')
     on_ = observer_all.merge(neutral_all, on=['model','question_id'], how='inner')
 
@@ -953,12 +894,10 @@ def exp10(master):
         obs,lo,hi = bootstrap_ci(g['shift_NO'].dropna().values)
         rows.append({'model':model,'tier':int(tier),'mean_shift_NO':obs,'NO_lo':lo,'NO_hi':hi})
     df = pd.DataFrame(rows)
-    # Merge NP and NO by model/tier
     np_part = df[df['mean_shift_NP'].notna()][['model','tier','mean_shift_NP','NP_lo','NP_hi']]
     no_part = df[df['mean_shift_NO'].notna()][['model','tier','mean_shift_NO','NO_lo','NO_hi']]
     sum_df = np_part.merge(no_part, on=['model','tier'], how='outer')
 
-    # Plot
     fig,axes=plt.subplots(2,3,figsize=(18,10))
     models_show = (OLMO_7B_STAGES+OLMO_32B_STAGES+TULU_STAGES +
                    [m for m in sorted(master['model'].unique())
@@ -1003,9 +942,6 @@ spd_sum = exp10(MASTER)
 spd_sum.to_csv(os.path.join(RESULTS,'exp10_directional_spd.csv'),index=False)
 plog('Exp 10 done.')
 
-# ─────────────────────────────────────────────────────────────────────────────
-# EXP 11 — Suppression Index
-# ─────────────────────────────────────────────────────────────────────────────
 plog('\n=== Exp 11: Suppression Index ===')
 
 def exp11(master):
@@ -1075,9 +1011,6 @@ sup_detail, sup_sum=exp11(MASTER)
 sup_sum.to_csv(os.path.join(RESULTS,'exp11_suppression_index.csv'),index=False)
 plog('Exp 11 done.')
 
-# ─────────────────────────────────────────────────────────────────────────────
-# SUMMARY FIGURE
-# ─────────────────────────────────────────────────────────────────────────────
 plog('\n=== Summary Figure ===')
 
 def summary_figure():
@@ -1137,9 +1070,6 @@ def summary_figure():
 
 summary_figure()
 
-# ─────────────────────────────────────────────────────────────────────────────
-# LATEX REPORT
-# ─────────────────────────────────────────────────────────────────────────────
 plog('\n=== Writing LaTeX Report ===')
 
 report = r"""\documentclass[10pt,a4paper]{article}

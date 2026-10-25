@@ -21,11 +21,9 @@ BASE    = os.environ.get("ALIGNMENT_VETO_ROOT", "data")
 RESULTS = os.path.join(BASE, 'results')
 XLSX    = os.path.join(BASE, 'Fixed_no_mention_corrected (6).xlsx')
 
-# ── Load data ─────────────────────────────────────────────────────────────────
 print('Loading master_table.pkl ...')
 mt = pickle.load(open(os.path.join(RESULTS, 'master_table.pkl'), 'rb'))
 
-# Load question texts (Personalization sheet — has country-specific prompts)
 xl = pd.ExcelFile(XLSX)
 pers_df = xl.parse('Personalization').set_index('question_id')
 third_df = xl.parse('Third').set_index('question_id')
@@ -39,7 +37,6 @@ def get_prompt_text(qid, country, sheet='Personalization'):
     return None
 
 
-# ── Helper: compute WVS majority answer and latent agreement ──────────────────
 def wvs_majority(human_dist: dict) -> int | None:
     """Return the scale value with the highest human fraction."""
     if not human_dist:
@@ -63,7 +60,6 @@ def top_latent_token(norm_probs: dict) -> tuple[str, float]:
     return tok, norm_probs[tok]
 
 
-# ── Filter to T3 refused rows with WVS data ───────────────────────────────────
 print('Filtering T3 refusals with WVS data...')
 t3_ref = mt[
     (mt['tier'] == 3) &
@@ -75,7 +71,6 @@ t3_ref = mt[
 
 print(f'T3 refused rows with WVS data: {len(t3_ref)}')
 
-# Compute WVS majority and latent agreement
 t3_ref['wvs_maj'] = t3_ref['human_dist'].apply(wvs_majority)
 t3_ref['wvs_maj_frac'] = t3_ref.apply(
     lambda r: r['human_dist'].get(str(r['wvs_maj']), 0.0), axis=1)
@@ -90,14 +85,11 @@ t3_ref['latent_agrees_75'] = t3_ref.apply(
 t3_ref['latent_wvs_mass']  = t3_ref.apply(
     lambda r: r['norm_probs'].get(str(r['wvs_maj']), 0.0), axis=1)
 
-# Sheets to include (avoid diff/native sheets for clarity)
 t3_ref = t3_ref[t3_ref['sheet'].isin(['Personalization', 'Third'])]
 print(f'After filtering to Personalization+Third sheets: {len(t3_ref)}')
 
-# Sort by latent_wvs_mass descending (strongest suppression first)
 t3_ref = t3_ref.sort_values('latent_wvs_mass', ascending=False).reset_index(drop=True)
 
-# ── Select diverse examples: different models, questions, countries ─────────────
 print('\nSelecting diverse top examples...')
 
 selected = []
@@ -105,7 +97,6 @@ seen_qids = set()
 seen_models = set()
 model_count = {}
 
-# Prefer instruction-tuned models with strong suppression
 preferred_models = [
     'gemma_3_27b_it', 'gemma_3_12b_it', 'gemma_3_4b_it',
     'gpt4o_mini', 'allam_7b_instruct', 'fanar_1_9b_instruct',
@@ -114,25 +105,22 @@ preferred_models = [
 ]
 
 def score_row(row):
-    # Prefer high latent mass on WVS majority, high WVS consensus, clean prompt
     return row['latent_wvs_mass'] * (0.5 + row['wvs_maj_frac'])
 
 for _, row in t3_ref.iterrows():
     if len(selected) >= 8:
         break
     if row['question_id'] in seen_qids and len(seen_qids) < 15:
-        continue  # variety of questions
+        continue
     m = row['model']
     if model_count.get(m, 0) >= 2:
-        continue  # max 2 per model
+        continue
 
-    # Get the prompt text
     sheet = row['sheet']
     prompt = get_prompt_text(int(row['question_id']), row['country'], sheet)
     if prompt is None:
         continue
 
-    # Shorten prompt: remove "Provide the answer number only." suffix, keep body
     prompt_short = re.sub(r'\s*Provide the answer number only\.\s*$', '', prompt).strip()
     prompt_short = re.sub(r'^Imagine you are [aA]n? \w+ person\. ', '', prompt_short).strip()
     prompt_short = re.sub(r'^Imagine you are a citizen of \w+\.? ', '', prompt_short).strip()
@@ -162,7 +150,6 @@ for _, row in t3_ref.iterrows():
     model_count[m] = model_count.get(m, 0) + 1
 
 if len(selected) < 6:
-    # Relax constraint on unique questions
     for _, row in t3_ref.iterrows():
         if len(selected) >= 8:
             break
@@ -205,7 +192,6 @@ ex = pd.DataFrame(selected)
 ex.to_csv(os.path.join(RESULTS, 'qualitative_examples.csv'), index=False)
 print(f'Selected {len(ex)} examples.')
 
-# ── Pretty console print ──────────────────────────────────────────────────────
 label_map = {
     'allam_7b_instruct': 'ALLAM-7B',
     'aya_expanse_8b': 'AYA-8B',
@@ -234,7 +220,6 @@ for i, row in ex.iterrows():
     print(f"  Latent probs: {row['norm_probs_str']}")
     print(f"  → Mass on WVS majority: {row['latent_wvs_mass']:.1%}")
 
-# ── LaTeX table ───────────────────────────────────────────────────────────────
 lines = []
 lines.append(r'\begin{table}[H]')
 lines.append(r'\centering')
@@ -277,7 +262,6 @@ with open(tex_out, 'w') as f:
     f.write('\n'.join(lines) + '\n')
 print(f'\nSaved LaTeX table: {tex_out}')
 
-# ── Summary stats ─────────────────────────────────────────────────────────────
 print(f'\nOverall T3 refusal suppression stats:')
 print(f"  Rows with >50% latent mass on WVS majority: {t3_ref['latent_agrees_50'].sum()}/{len(t3_ref)} "
       f"({t3_ref['latent_agrees_50'].mean():.1%})")

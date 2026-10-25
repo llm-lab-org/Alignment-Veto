@@ -68,14 +68,12 @@ def latex_tbl(df, caption, label, cf=None):
                     column_format=cf,na_rep='—'),
         r'\end{table}',])
 
-# ── Load master table ──────────────────────────────────────────────────────────
 plog('Loading master table...')
 MASTER = pd.read_pickle(os.path.join(RESULTS,'master_table.pkl'))
 plog(f'  {len(MASTER):,} rows, {MASTER.model.nunique()} models')
 plog(f'  Sheets: {sorted(MASTER.sheet.unique())}')
 plog(f'  Tier counts: {MASTER.tier.value_counts().sort_index().to_dict()}')
 
-# ── Load human data for PCA ────────────────────────────────────────────────────
 plog('Loading human data for PCA...')
 def load_human():
     df = pd.read_excel(os.path.join(BASE,'new_weights_transposed.xlsx'))
@@ -94,7 +92,6 @@ def load_human():
     return df.set_index('question_id')
 HUMAN = load_human()
 
-# ── EXP 2a: Safety Tax ──────────────────────────────────────────────────────────
 plog('\n=== Exp 2a: Safety Tax ===')
 
 rows=[]
@@ -139,7 +136,6 @@ save_latex(latex_tbl(piv_tex.round(3),
 refusal_df.to_csv(os.path.join(RESULTS,'exp2a_refusal.csv'),index=False)
 plog('  Exp 2a done.')
 
-# ── EXP 2b: NVAS by Tier ──────────────────────────────────────────────────────
 plog('\n=== Exp 2b: NVAS by Tier ===')
 
 sub2b = MASTER[
@@ -181,7 +177,6 @@ ax2.axvline(0,color='black',lw=0.8)
 ax2.set_xlabel('NVAS(T3)−NVAS(T1)'); ax2.set_title('NVAS Accuracy Gap T3−T1')
 fig.tight_layout(); save_fig(fig,'exp2b_nvas_by_tier.pdf')
 
-# OLMo Tier-3
 olmo_t3=nvas_df[(nvas_df['tier']==3)&nvas_df['model'].str.contains('olmo')].copy()
 if len(olmo_t3):
     fig2,ax3=plt.subplots(figsize=(8,5))
@@ -201,7 +196,6 @@ save_latex(latex_tbl(nv_tex.round(3),'NVAS by model and tier (non-refused answer
 nvas_df.to_csv(os.path.join(RESULTS,'exp2b_nvas.csv'),index=False)
 plog('  Exp 2b done.')
 
-# ── EXP 3: Direction of Suppression ──────────────────────────────────────────
 plog('\n=== Exp 3: Direction of Suppression ===')
 
 def majority_opt(d):
@@ -291,7 +285,6 @@ else:
 
 plog('  Exp 3 done.')
 
-# ── Consistency Metrics ────────────────────────────────────────────────────────
 plog('\n=== Consistency Metrics (FCS, CLCS, SPD) ===')
 
 def get_vals(master, model, sheet, country, neutral=False):
@@ -358,7 +351,6 @@ for ax,metric,title in zip(axes,['FCS','CLCS','SPD'],
 fig.tight_layout(); save_fig(fig,'consistency_heatmaps.pdf')
 plog('  Consistency metrics done.')
 
-# ── PCA 7.1: Human Survey ────────────────────────────────────────────────────
 plog('\n=== PCA 7.1: Human Survey ===')
 mat71=[]; vc71=[]
 for c in COUNTRIES:
@@ -405,7 +397,6 @@ ax2.set_yticklabels(ax2.get_yticklabels(),fontsize=7)
 fig.tight_layout(); save_fig(fig,'pca_7_1_human.pdf')
 plog(f'  PCA 7.1: PC1={ve71[0]:.1%}, PC2={ve71[1]:.1%}')
 
-# ── PCA helpers ───────────────────────────────────────────────────────────────
 def country_matrix(model, sheet, min_q=30):
     qids=sorted(MASTER['question_id'].unique()); mat=[]; vc=[]
     for country in COUNTRIES:
@@ -421,7 +412,6 @@ def country_matrix(model, sheet, min_q=30):
     try: return PCA(2).fit_transform(StandardScaler().fit_transform(mat)),vc
     except: return None,None
 
-# ── PCA 7.2: LLM Observer English ────────────────────────────────────────────
 plog('=== PCA 7.2: Observer English ===')
 models72=sorted(MASTER['model'].unique())
 nc=7; nr=(len(models72)+nc-1)//nc
@@ -441,7 +431,6 @@ for ax in axes72[idx+1:]: ax.axis('off')
 fig72.suptitle('PCA 7.2: LLM Observer (English) Country Vectors',fontsize=12)
 fig72.tight_layout(); save_fig(fig72,'pca_7_2_observer_english.pdf')
 
-# ── PCA 7.3: Native Language ─────────────────────────────────────────────────
 plog('=== PCA 7.3: Native Language ===')
 focus73=['olmo_3_7b_instruct','llama_3.1_8b_instruct','qwen2.5_7b_instruct',
          'gemma_3_12b_it','aya_expanse_8b','mistral_7b_instruct']
@@ -461,7 +450,6 @@ if focus73:
     fig73.suptitle('PCA 7.3: Native Language Observer — Language-Family Collapse',fontsize=11)
     fig73.tight_layout(); save_fig(fig73,'pca_7_3_native.pdf')
 
-# ── PCA 7.4: Persona + Neutral ───────────────────────────────────────────────
 plog('=== PCA 7.4: Persona + Neutral ===')
 focus74=['olmo_3_7b_instruct','llama_3.1_8b_instruct','qwen2.5_7b_instruct','gemma_3_12b_it']
 focus74=[m for m in focus74 if m in MASTER['model'].unique()]
@@ -497,7 +485,6 @@ if focus74:
     fig74.suptitle('PCA 7.4: Persona + Neutral ★ — Cultural Identity Crisis',fontsize=11)
     fig74.tight_layout(); save_fig(fig74,'pca_7_4_persona_neutral.pdf')
 
-# ── PCA 7.5: Cross-Lingual ───────────────────────────────────────────────────
 plog('=== PCA 7.5: Cross-Lingual Value Shift ===')
 focus75=['olmo_3_7b_instruct','llama_3.1_8b_instruct','qwen2.5_7b_instruct',
          'gemma_3_12b_it','aya_expanse_8b']
@@ -511,7 +498,7 @@ if focus75:
                       (MASTER['country']=='NEUTRAL')&~MASTER['refusal']&MASTER['extracted'].notna()].set_index('question_id')
         nat_sub=MASTER[(MASTER['model']==model)&(MASTER['sheet']=='No Mention Diff')&
                        (MASTER['country']=='NEUTRAL')&~MASTER['refusal']&MASTER['extracted'].notna()].set_index('question_id')
-        if len(nat_sub)==0:  # Try Personalization_Diff as proxy
+        if len(nat_sub)==0:
             nat_sub=MASTER[(MASTER['model']==model)&(MASTER['sheet']=='Personalization_Diff')&
                            ~MASTER['refusal']&MASTER['extracted'].notna()].groupby('question_id')['extracted'].mean()
             nat_sub=pd.DataFrame({'extracted':nat_sub})
@@ -533,7 +520,6 @@ if focus75:
 
 plog('  PCA analyses done.')
 
-# ── EXP 5: Training Ablation ─────────────────────────────────────────────────
 plog('\n=== Exp 5: Training Ablation ===')
 stage_groups=[('OLMo-7B',OLMO_7B),('OLMo-32B',OLMO_32B),('Tulu',TULU)]
 supp_df_local = supp_df if 'supp_df' in dir() and len(supp_df) else pd.DataFrame()
@@ -589,7 +575,6 @@ if abl_models:
     save_latex(latex_tbl(comb.round(3),'Refusal rates and NVAS across training stages.','tab:exp5'),'exp5_ablation.tex')
 plog('  Exp 5 done.')
 
-# ── EXP 10: Directional SPD ──────────────────────────────────────────────────
 plog('\n=== Exp 10: Directional SPD ===')
 
 neutral_map = MASTER[
@@ -662,7 +647,6 @@ save_latex(latex_tbl(pd.concat([np_piv,no_piv],axis=1),
     'tab:exp10'),'exp10_directional_spd.tex')
 plog('  Exp 10 done.')
 
-# ── EXP 11: Suppression Index ─────────────────────────────────────────────────
 plog('\n=== Exp 11: Suppression Index ===')
 
 pers11 = MASTER[
@@ -724,7 +708,6 @@ save_latex(latex_tbl(pt11.round(3),
     'tab:exp11'),'exp11_suppression_index.tex')
 plog('  Exp 11 done.')
 
-# ── Summary Figure ────────────────────────────────────────────────────────────
 plog('\n=== Summary Figure ===')
 fig_s,axes_s=plt.subplots(2,3,figsize=(22,12))
 
@@ -774,7 +757,6 @@ if 'T3_m_T1' in piv.columns:
 fig_s.suptitle('MENA LLM Value Alignment — Summary',fontsize=14,fontweight='bold')
 fig_s.tight_layout(); save_fig(fig_s,'summary_overview.pdf')
 
-# ── LaTeX Report ──────────────────────────────────────────────────────────────
 plog('\n=== Writing LaTeX Report ===')
 report = r"""\documentclass[10pt,a4paper]{article}
 \usepackage{booktabs,longtable,graphicx,float,caption}

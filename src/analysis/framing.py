@@ -60,11 +60,9 @@ LANG_FAMILY = {
 }
 FAM_COL = {'Arabic':'#E53935','Persian':'#1E88E5','Turkish':'#43A047'}
 
-# Map _Diff prompt columns to language family
 DIFF_LANG_MAP = {
     'Arabic No Mention': 'Arabic', 'Persian No Mention': 'Persian', 'Turkey No Mention': 'Turkish',
 }
-# Country → language family
 COUNTRY_FAM = {}
 for fam, clist in LANG_FAMILY.items():
     for c in clist:
@@ -75,7 +73,6 @@ ALL_MODELS = sorted([f.replace('.xlsx','') for f in os.listdir(DATA_DIR)
                      if f.endswith('.xlsx') and not f.startswith('_worker')
                      and f.replace('.xlsx','') not in EXCLUDED_MODELS])
 
-# Some xlsx files use a different column prefix than the filename (e.g. gpt_5.xlsx → gpt5)
 XLSX_TO_PREFIX = {'gpt_5': 'gpt5'}
 
 plt.rcParams.update({'font.family':'serif','font.size':10,'axes.titlesize':11,
@@ -148,7 +145,6 @@ def cosine_sim(d1, d2):
     n = np.linalg.norm(v1)*np.linalg.norm(v2)
     return float(np.dot(v1,v2)/n) if n>0 else np.nan
 
-# ── Load human data ────────────────────────────────────────────────────────────
 plog('Loading human data...')
 TIERS = pd.read_csv(os.path.join(BASE,'tiers.csv'))
 TIERS = TIERS.rename(columns={'No Mention':'question_text'})
@@ -174,7 +170,6 @@ def load_human_data():
 HUMAN = load_human_data()
 plog(f'  Human data: {len(HUMAN)} questions × {len(COUNTRIES)} countries')
 
-# ── Rebuild / load master table ────────────────────────────────────────────────
 plog(f'Building master table for {len(ALL_MODELS)} models...')
 t0 = time.time()
 
@@ -289,14 +284,10 @@ plog(f'Master table: {len(MASTER):,} rows, {MASTER.model.nunique()} models, {MAS
 MASTER.to_pickle(os.path.join(RESULTS,'master_table.pkl'))
 plog('  Saved master_table.pkl')
 
-# ── NVAS helper ───────────────────────────────────────────────────────────────
 def compute_nvas(df):
     rng = (df['vmax']-df['vmin']).replace(0,np.nan)
     return 1.0 - (df['extracted']-df['human_mean']).abs()/rng
 
-# ─────────────────────────────────────────────────────────────────────────────
-# EXP F1: Framing Effects
-# ─────────────────────────────────────────────────────────────────────────────
 plog('\n=== Exp F1: Framing Effects ===')
 
 FRAMING_SHEETS = {
@@ -309,7 +300,6 @@ FRAMING_DIFF_SHEETS = {
     'Third_Diff':           ('Native', 'third'),
 }
 
-# F1a: Refusal rate by framing × tier × model
 rows_f1 = []
 for model, m_df in MASTER.groupby('model'):
     for sheet, (lang, framing) in {**FRAMING_SHEETS, **FRAMING_DIFF_SHEETS}.items():
@@ -323,7 +313,6 @@ for model, m_df in MASTER.groupby('model'):
 f1_df = pd.DataFrame(rows_f1)
 f1_df.to_csv(os.path.join(RESULTS,'f1_refusal_by_framing.csv'),index=False)
 
-# Plot: refusal rate heatmap (model × framing) for Tier 3
 fig, axes = plt.subplots(1,3,figsize=(18,8))
 tiers = [1,2,3]
 for ax_idx, tier in enumerate(tiers):
@@ -343,7 +332,6 @@ fig.suptitle('Refusal Rate by Framing, Tier, and Model',fontsize=12)
 fig.tight_layout(rect=[0,0,1,0.96])
 save_fig(fig,'f1a_refusal_framing_heatmap.pdf')
 
-# F1b: NVAS by framing for country-specific sheets
 rows_f1b = []
 for model, m_df in MASTER.groupby('model'):
     for sheet, (lang, framing) in {**FRAMING_SHEETS, **FRAMING_DIFF_SHEETS}.items():
@@ -361,7 +349,6 @@ for model, m_df in MASTER.groupby('model'):
 f1b_df = pd.DataFrame(rows_f1b)
 f1b_df.to_csv(os.path.join(RESULTS,'f1b_nvas_by_framing.csv'),index=False)
 
-# Plot: NVAS by framing per tier, averaged over models
 fig, axes = plt.subplots(1,3,figsize=(18,6))
 FCOLORS = {'No Mention':'#607D8B','Personalization':'#1976D2','Third':'#388E3C',
            'Personalization_Diff':'#7986CB','Third_Diff':'#81C784'}
@@ -381,7 +368,6 @@ fig.suptitle('NVAS by Framing (averaged across models & countries)',fontsize=12)
 fig.tight_layout(rect=[0,0,1,0.95])
 save_fig(fig,'f1b_nvas_by_framing.pdf')
 
-# F1c: Is Persona intermediate? Test per question × model × country
 plog('  F1c: Persona intermediary test...')
 rows_f1c = []
 sheets = {
@@ -406,10 +392,9 @@ merged['dist_nm'] = (merged['nm_ext']-merged['human_mean']).abs()/rng
 merged['dist_pe'] = (merged['pe_ext']-merged['human_mean']).abs()/rng
 merged['dist_th'] = (merged['th_ext']-merged['human_mean']).abs()/rng
 
-# For each row: is persona strictly between no_mention and third?
-merged['nm_closer_than_pe'] = merged['dist_nm'] > merged['dist_pe']   # nm farther than pe
-merged['pe_closer_than_th'] = merged['dist_pe'] > merged['dist_th']   # pe farther than th (third closer)
-merged['pe_intermediate']   = merged['nm_closer_than_pe'] & merged['pe_closer_than_th']  # NM > PE > TH distance (third is closest)
+merged['nm_closer_than_pe'] = merged['dist_nm'] > merged['dist_pe']
+merged['pe_closer_than_th'] = merged['dist_pe'] > merged['dist_th']
+merged['pe_intermediate']   = merged['nm_closer_than_pe'] & merged['pe_closer_than_th']
 merged['th_closest'] = merged['dist_th'] < merged['dist_pe']
 
 for model, g in merged.groupby('model'):
@@ -426,7 +411,6 @@ for model, g in merged.groupby('model'):
 f1c_df = pd.DataFrame(rows_f1c).sort_values('mean_dist_th')
 f1c_df.to_csv(os.path.join(RESULTS,'f1c_persona_intermediate.csv'),index=False)
 
-# Plot: mean distance from human data by framing
 fig, axes = plt.subplots(1,2,figsize=(16,7))
 ax = axes[0]
 models_sorted = f1c_df.sort_values('mean_dist_nm').model.tolist()
@@ -455,7 +439,6 @@ fig.suptitle('Is Persona intermediate between No-Mention and Third?',fontsize=12
 fig.tight_layout(rect=[0,0,1,0.95])
 save_fig(fig,'f1c_persona_intermediate.pdf')
 
-# LaTeX summary table for F1c
 tbl_c = f1c_df[['model','mean_dist_nm','mean_dist_pe','mean_dist_th','pct_pe_intermediate']].copy()
 tbl_c.columns = ['Model','Dist-NoMention','Dist-Persona','Dist-Third','\\%Persona Intermediate']
 tbl_c = tbl_c.set_index('Model')
@@ -464,7 +447,6 @@ save_latex(latex_table(tbl_c.round(3),
     'Persona Intermediate\\% = fraction of questions where NM\$>\$Persona\$>\$Third distance.',
     'tab:f1c'), 'f1c_persona_intermediate.tex')
 
-# F1d: JS divergence from human distribution by framing
 plog('  F1d: JS divergence from human distribution...')
 rows_f1d = []
 for model, m_df in MASTER.groupby('model'):
@@ -499,12 +481,8 @@ save_fig(fig,'f1d_jsd_from_human.pdf')
 
 plog('  Exp F1 done.')
 
-# ─────────────────────────────────────────────────────────────────────────────
-# EXP F2: Linguistic Analysis (English vs Native)
-# ─────────────────────────────────────────────────────────────────────────────
 plog('\n=== Exp F2: Linguistic Analysis ===')
 
-# F2a: NVAS English vs Native per model × language family
 rows_f2a = []
 for model, m_df in MASTER.groupby('model'):
     for framing_en, framing_nat in [('Personalization','Personalization_Diff'),('Third','Third_Diff')]:
@@ -527,7 +505,6 @@ for model, m_df in MASTER.groupby('model'):
 f2a_df = pd.DataFrame(rows_f2a)
 f2a_df.to_csv(os.path.join(RESULTS,'f2a_nvas_lang.csv'),index=False)
 
-# Plot: NVAS gain (native - english) by model × language family
 f2a_df['nvas_gain'] = f2a_df['nvas_nat'] - f2a_df['nvas_en']
 fig, axes = plt.subplots(1,2,figsize=(16,7))
 for ax_idx, framing in enumerate(['Persona','Third']):
@@ -548,7 +525,6 @@ fig.suptitle('Does native language improve alignment with human data?',fontsize=
 fig.tight_layout(rect=[0,0,1,0.95])
 save_fig(fig,'f2a_nvas_language_gain.pdf')
 
-# F2b: JS divergence between English and Native distributions
 plog('  F2b: JS divergence between English and native distributions...')
 rows_f2b = []
 for model, m_df in MASTER.groupby('model'):
@@ -572,7 +548,6 @@ for model, m_df in MASTER.groupby('model'):
 f2b_df = pd.DataFrame(rows_f2b)
 f2b_df.to_csv(os.path.join(RESULTS,'f2b_jsd_en_native.csv'),index=False)
 
-# Plot: JS divergence English vs Native by language family
 fig, axes = plt.subplots(1,2,figsize=(16,6))
 for ax_idx, framing in enumerate(['Personalization','Third']):
     ax = axes[ax_idx]
@@ -590,7 +565,6 @@ fig.suptitle('How much does switching to native language change logit distributi
 fig.tight_layout(rect=[0,0,1,0.95])
 save_fig(fig,'f2b_jsd_en_native.pdf')
 
-# F2c: Refusal rate: English vs Native
 rows_f2c = []
 for model, m_df in MASTER.groupby('model'):
     for framing_en, framing_nat in [('Personalization','Personalization_Diff'),('Third','Third_Diff')]:
@@ -619,12 +593,8 @@ fig.tight_layout(); save_fig(fig,'f2c_refusal_lang_change.pdf')
 
 plog('  Exp F2 done.')
 
-# ─────────────────────────────────────────────────────────────────────────────
-# EXP F3: Tier 3 Framing × Logit Distributions
-# ─────────────────────────────────────────────────────────────────────────────
 plog('\n=== Exp F3: Tier 3 Framing Effects on Logit Distributions ===')
 
-# F3a: Logit entropy by framing × tier
 rows_f3a = []
 for model, m_df in MASTER.groupby('model'):
     for sheet, (lang, framing) in {**FRAMING_SHEETS, **FRAMING_DIFF_SHEETS}.items():
@@ -656,7 +626,6 @@ fig.suptitle('Logit Distribution Entropy by Framing and Tier',fontsize=12)
 fig.tight_layout(rect=[0,0,1,0.96])
 save_fig(fig,'f3a_entropy_heatmap.pdf')
 
-# F3b: Digit-token probability mass on Tier 3 refusals by framing
 rows_f3b = []
 for model, m_df in MASTER.groupby('model'):
     for sheet, (lang, framing) in {**FRAMING_SHEETS, **FRAMING_DIFF_SHEETS}.items():
@@ -689,13 +658,8 @@ if len(f3b_df)>0:
 
 plog('  Exp F3 done.')
 
-# ─────────────────────────────────────────────────────────────────────────────
-# EXP M1: Mechanistic — Cross-framing Logit Similarity & Entropy
-# ─────────────────────────────────────────────────────────────────────────────
 plog('\n=== Exp M1: Mechanistic — Cross-framing Logit Similarity ===')
 
-# M1a: Cosine similarity between Persona and Third logit distributions
-# (same model × country × question)
 plog('  M1a: Persona vs Third cosine similarity...')
 pe_sub = MASTER[MASTER['sheet']=='Personalization'][['model','question_id','country','norm_probs','tier']].copy()
 th_sub = MASTER[MASTER['sheet']=='Third'][['model','question_id','country','norm_probs','tier']].copy()
@@ -727,8 +691,6 @@ ax.axvline(1.0,lw=0.8,color='black',ls='--')
 ax.legend()
 fig.tight_layout(); save_fig(fig,'m1a_cosine_persona_third.pdf')
 
-# M1b: Entropy across framings — does framing make model more/less certain?
-# Already computed above (f3a). Here compute per-question framing entropy change.
 plog('  M1b: Entropy shift: No Mention → Persona → Third...')
 nm_ent  = MASTER[MASTER['sheet']=='No Mention'][['model','question_id','norm_probs','tier']].copy()
 pe_ent  = MASTER[MASTER['sheet']=='Personalization'][['model','question_id','country','norm_probs','tier']].copy()
@@ -773,7 +735,6 @@ fig.suptitle('How does framing change model certainty (logit entropy)?',fontsize
 fig.tight_layout(rect=[0,0,1,0.95])
 save_fig(fig,'m1b_entropy_shift.pdf')
 
-# M1c: Framing shift direction — does Persona/Third push answers higher or lower?
 plog('  M1c: Framing shift direction...')
 rows_m1c = []
 pe_vals = MASTER[MASTER['sheet']=='Personalization'][['model','question_id','country','extracted']].rename(columns={'extracted':'pe'})
@@ -798,7 +759,6 @@ for model, g in merged_dir.groupby('model'):
 m1c_df = pd.DataFrame(rows_m1c)
 m1c_df.to_csv(os.path.join(RESULTS,'m1c_framing_shift_direction.csv'),index=False)
 
-# Plot: shift direction heatmap (country × framing averaged over models)
 fig, axes = plt.subplots(1,2,figsize=(16,8))
 for ax_idx, (col, title) in enumerate([('pe_shift_mean','Persona − No Mention'),('th_shift_mean','Third − No Mention')]):
     ax = axes[ax_idx]
@@ -815,9 +775,6 @@ save_fig(fig,'m1c_framing_shift_direction.pdf')
 
 plog('  Exp M1 done.')
 
-# ─────────────────────────────────────────────────────────────────────────────
-# EXP M2: Mechanistic — RSA on cached activations
-# ─────────────────────────────────────────────────────────────────────────────
 plog('\n=== Exp M2: Representational Similarity Analysis ===')
 import glob
 
@@ -829,28 +786,23 @@ for act_file in act_files:
     model_nm = os.path.basename(act_file).replace('probe_acts_','').replace('.npy','')
     tgt_file = act_file.replace('probe_acts_','probe_targets_')
     if not os.path.exists(tgt_file): continue
-    acts = np.load(act_file)   # (N, L, D)
-    tgts = np.load(tgt_file)   # (N,) — normalized values
+    acts = np.load(act_file)
+    tgts = np.load(tgt_file)
 
     N, L, D = acts.shape
     plog(f'  {model_nm}: acts={acts.shape}, tgts={tgts.shape}')
 
-    # RSA: for each layer, compute correlation between representational distance matrix
-    # and value-difference matrix. Higher = layer encodes human-value-like structure.
-    # Use subset for speed
     rng = np.random.default_rng(42)
     idx = rng.choice(N, min(500,N), replace=False)
-    acts_sub = acts[idx]   # (500, L, D)
-    tgts_sub = tgts[idx]  # (500,)
+    acts_sub = acts[idx]
+    tgts_sub = tgts[idx]
 
-    # Value distance matrix
-    val_dist = np.abs(tgts_sub[:,None] - tgts_sub[None,:])  # (500,500)
+    val_dist = np.abs(tgts_sub[:,None] - tgts_sub[None,:])
     val_dist_flat = val_dist[np.triu_indices(len(idx),k=1)]
 
     layer_rsa = []
     for l in range(L):
-        h = acts_sub[:,l,:]  # (500, D)
-        # Cosine distance matrix
+        h = acts_sub[:,l,:]
         norms = np.linalg.norm(h,axis=1,keepdims=True) + 1e-8
         h_norm = h/norms
         cos_sim_mat = h_norm @ h_norm.T
@@ -871,7 +823,6 @@ for act_file in act_files:
     fig.tight_layout(); save_fig(fig, f'm2_rsa_{model_nm}.pdf')
 
 if rsa_rows:
-    # Summary: peak RSA layer and value
     fig, ax = plt.subplots(figsize=(8,5))
     for r in rsa_rows:
         L = len(r['layer_rsa'])
@@ -883,9 +834,6 @@ if rsa_rows:
 
 plog('  Exp M2 done.')
 
-# ─────────────────────────────────────────────────────────────────────────────
-# EXP M3: SAE Feature Analysis — framing-sensitive features
-# ─────────────────────────────────────────────────────────────────────────────
 plog('\n=== Exp M3: SAE Feature Analysis ===')
 sae_files = glob.glob(os.path.join(RESULTS,'sae_codes_*.npy'))
 plog(f'  Found {len(sae_files)} SAE code files')
@@ -895,19 +843,16 @@ for sae_file in sae_files:
     tgt_file = sae_file.replace('sae_codes_','probe_targets_')
     act_file = sae_file.replace('sae_codes_','probe_acts_')
     if not os.path.exists(tgt_file): continue
-    codes = np.load(sae_file)   # (N, F) — sparse SAE activations
-    tgts  = np.load(tgt_file)   # (N,)
+    codes = np.load(sae_file)
+    tgts  = np.load(tgt_file)
 
     N, F = codes.shape
     plog(f'  {model_nm}: SAE codes {codes.shape}')
 
-    # Sparsity
     sparsity = (codes>0).mean()
     k_avg = (codes>0).sum(axis=1).mean()
     plog(f'    Sparsity: {sparsity:.3f}, avg active features: {k_avg:.1f}')
 
-    # Find features that correlate with value targets (NVAS proxy)
-    # Compute point-biserial correlation: for each feature f, binary (active/not) vs tgt value
     from scipy.stats import pearsonr as prs
     feature_corrs = []
     for f in range(F):
@@ -942,34 +887,26 @@ for sae_file in sae_files:
 
 plog('  Exp M3 done.')
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Summary LaTeX tables
-# ─────────────────────────────────────────────────────────────────────────────
 plog('\n=== Generating summary tables ===')
 
-# Table: Refusal rate by framing (averaged across models, Tier 3)
 if len(f1_df)>0:
     t3 = f1_df[f1_df['tier']==3].groupby('sheet')['refusal_rate'].agg(['mean','std']).round(3)
     t3.columns = ['Mean Refusal','Std']
     save_latex(latex_table(t3, 'Tier~3 refusal rates by framing (averaged across all models).','tab:f1_refusal_t3'),'f1_refusal_tier3.tex')
 
-# Table: NVAS by framing
 if len(f1b_df)>0:
     nvas_summary = f1b_df.groupby('sheet')['nvas'].agg(['mean','std']).round(3)
     nvas_summary.columns = ['Mean NVAS','Std']
     save_latex(latex_table(nvas_summary,'NVAS by framing (averaged across all models and tiers).','tab:f1b_nvas'),'f1b_nvas_summary.tex')
 
-# Table: native language NVAS gain
 if len(f2a_df)>0:
     gain_summary = f2a_df.groupby(['framing','lang_family'])['nvas_gain'].mean().unstack('lang_family').round(3)
     save_latex(latex_table(gain_summary,'Mean NVAS gain (native$-$English) by framing and language family.','tab:f2a_gain'),'f2a_nvas_gain.tex')
 
-# Table: Entropy summary
 if len(f3a_df)>0:
     ent_summary = f3a_df.groupby(['tier','sheet'])['entropy'].mean().unstack('sheet').round(3)
     save_latex(latex_table(ent_summary,'Mean logit entropy (bits) by tier and framing.','tab:f3a_entropy'),'f3a_entropy_summary.tex')
 
-# Table: Mechanistic summary (Persona vs Third cosine sim)
 if len(m1a_df)>0:
     m1a_tex = m1a_df[['model','cosine_all','cosine_tier3']].set_index('model').round(3)
     m1a_tex.columns = ['Cosine Sim (All)','Cosine Sim (T3)']

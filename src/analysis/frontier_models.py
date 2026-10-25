@@ -20,7 +20,6 @@ def nvas(row):
 mt_acc = mt[~mt['refusal']].copy()
 mt_acc['nvas'] = mt_acc.apply(nvas, axis=1)
 
-# Per-model stats (Persona EN)
 rows = []
 for mk in mt['model'].unique():
     sub = mt[(mt['model']==mk) & (mt['sheet']=='Personalization')]
@@ -74,7 +73,6 @@ df['fam'] = df['label'].map(FAM).fillna('instruct')
 
 print(df[['label','safety_tax','nvas_t3_persona','nvas_t3_third','nvas_all']].round(3).sort_values('nvas_t3_persona', ascending=False).to_string())
 
-# ── Figure 1: Safety tax vs T3 NVAS scatter + Third framing arrows ───────────
 fig, ax = plt.subplots(figsize=(11, 7.5)); fig.patch.set_facecolor('white')
 ax.set_facecolor('#FAFAFA')
 
@@ -102,7 +100,6 @@ handles = [mpatches.Patch(color=FAM_COLORS[k], label=k.title()) for k in FAM_COL
 ax.legend(handles=handles, fontsize=8, framealpha=0.9, loc='lower right')
 ax.grid(lw=0.3, alpha=0.4, color='#ccc')
 
-# Highlight GPT-5
 gpt5_row = df[df['label']=='GPT-5']
 if len(gpt5_row):
     circ = plt.Circle((gpt5_row['safety_tax'].values[0], gpt5_row['nvas_t3_persona'].values[0]),
@@ -114,7 +111,6 @@ out = os.path.join(RESULTS, 'gap3_frontier_scatter.pdf')
 fig.savefig(out, bbox_inches='tight', dpi=200); plt.close(fig)
 print(f'Saved: {out}')
 
-# ── Figure 2: GPT-5 spotlight — per-tier refusal + NVAS ─────────────────────
 SPOTLIGHT = ['allam_7b_instruct','olmo_3_32b_instruct','aya_expanse_32b',
              'llama_3.1_8b_instruct','qwen3_30b_a3b_instruct',
              'gemma_3_27b_it','gpt4o_mini','gpt_5']

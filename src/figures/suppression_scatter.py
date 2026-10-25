@@ -18,16 +18,13 @@ RESULTS = os.path.join(os.environ.get("ALIGNMENT_VETO_ROOT", "data"), "results")
 df = pd.read_csv(os.path.join(RESULTS, 'exp3_suppression.csv'))
 df75 = df[df['threshold'] == 0.75].copy()
 
-# Pivot: rows = model, cols = tier
 piv = df75.pivot_table(index='model', columns='tier',
                         values=['agreement_rate', 'ci_lo', 'ci_hi', 'n_above'])
 piv.columns = ['_'.join(str(c) for c in col) for col in piv.columns]
 piv = piv.reset_index()
 
-# Keep only models that have both T2 and T3
 piv = piv.dropna(subset=['agreement_rate_2', 'agreement_rate_3'])
 
-# --- clean model labels ---
 label_map = {
     'allam_7b_instruct':      'ALLAM-7B',
     'aya_expanse_8b':         'AYA-8B',
@@ -64,55 +61,47 @@ label_map = {
 
 piv['label'] = piv['model'].map(label_map).fillna(piv['model'])
 
-# --- colour scheme: model family ---
 def family_color(m):
-    if 'olmo' in m:     return '#1565C0'   # blue
-    if 'tulu' in m:     return '#6A1B9A'   # purple
-    if 'llama' in m:    return '#2E7D32'   # green
-    if 'gemma' in m:    return '#F57F17'   # amber
-    if 'gpt' in m:      return '#B71C1C'   # red
-    if 'qwen' in m:     return '#00838F'   # teal
-    if 'aya' in m:      return '#AD1457'   # pink
-    if 'mistral' in m:  return '#4E342E'   # brown
-    if 'allam' in m or 'jais' in m or 'fanar' in m: return '#37474F'  # grey-blue
+    if 'olmo' in m:     return '#1565C0'
+    if 'tulu' in m:     return '#6A1B9A'
+    if 'llama' in m:    return '#2E7D32'
+    if 'gemma' in m:    return '#F57F17'
+    if 'gpt' in m:      return '#B71C1C'
+    if 'qwen' in m:     return '#00838F'
+    if 'aya' in m:      return '#AD1457'
+    if 'mistral' in m:  return '#4E342E'
+    if 'allam' in m or 'jais' in m or 'fanar' in m: return '#37474F'
     return '#757575'
 
 piv['color'] = piv['model'].apply(family_color)
 
-# Error bars: half-width of CI
 piv['xerr'] = (piv['ci_hi_2'] - piv['ci_lo_2']) / 2
 piv['yerr'] = (piv['ci_hi_3'] - piv['ci_lo_3']) / 2
 
-# ── Main figure ──────────────────────────────────────────────────────────────
 fig, ax = plt.subplots(figsize=(9, 8))
 
 ax.set_facecolor('#FAFAFA')
 fig.patch.set_facecolor('white')
 
-# Identity line
 lim_min = max(0, min(piv['agreement_rate_2'].min(), piv['agreement_rate_3'].min()) - 0.03)
 lim_max = min(1, max(piv['agreement_rate_2'].max(), piv['agreement_rate_3'].max()) + 0.06)
 ax.plot([lim_min, lim_max], [lim_min, lim_max],
         color='#555555', lw=1.4, ls='--', zorder=1, label='y = x  (T2 = T3 agreement)')
 
-# Shade regions
 ax.fill_between([lim_min, lim_max], [lim_min, lim_max], [lim_max, lim_max],
                 alpha=0.04, color='#1565C0', zorder=0)
 ax.fill_between([lim_min, lim_max], [lim_min, lim_min], [lim_min, lim_max],
                 alpha=0.04, color='#B71C1C', zorder=0)
 
-# Error bars (thin, behind points)
 for _, row in piv.iterrows():
     ax.errorbar(row['agreement_rate_2'], row['agreement_rate_3'],
                 xerr=row['xerr'], yerr=row['yerr'],
                 fmt='none', ecolor=row['color'], elinewidth=0.8, capsize=2,
                 alpha=0.5, zorder=2)
 
-# Scatter
 ax.scatter(piv['agreement_rate_2'], piv['agreement_rate_3'],
            c=piv['color'], s=90, zorder=3, linewidths=0.6, edgecolors='white')
 
-# Labels — offset to avoid overlap
 offset = {
     'OLMo3-7B-Base':   ( 0.005,  0.012),
     'OLMo3-7B-SFT':    ( 0.005, -0.014),
@@ -150,7 +139,6 @@ for _, row in piv.iterrows():
             lbl, fontsize=7.5, color=row['color'],
             va='bottom' if dy >= 0 else 'top', ha='left', zorder=4)
 
-# Annotation arrows for shaded regions
 ax.annotate('Hides accurate\ncultural knowledge\n(T3 > T2)',
             xy=(0.61, 0.64), fontsize=8, color='#1565C0', alpha=0.7,
             ha='center', style='italic')
@@ -158,7 +146,6 @@ ax.annotate('Genuine T3\nuncertainty\n(T3 < T2)',
             xy=(0.60, 0.18), fontsize=8, color='#B71C1C', alpha=0.7,
             ha='center', style='italic')
 
-# Legend for model families
 legend_items = [
     mpatches.Patch(color='#1565C0', label='OLMo-3 family'),
     mpatches.Patch(color='#6A1B9A', label='Tulu-3 family'),
@@ -185,7 +172,6 @@ ax.set_ylim(lim_min, lim_max)
 ax.set_aspect('equal')
 ax.grid(True, lw=0.4, alpha=0.5, color='#cccccc')
 
-# Fraction above diagonal
 above = (piv['agreement_rate_3'] > piv['agreement_rate_2']).sum()
 total = len(piv)
 ax.text(0.03, 0.97,
@@ -199,7 +185,6 @@ fig.savefig(out, bbox_inches='tight', dpi=200)
 plt.close(fig)
 print(f'Saved: {out}')
 
-# ── Also save a cleaner version without labels for compact figure ─────────────
 fig2, ax2 = plt.subplots(figsize=(6, 5.5))
 ax2.set_facecolor('#FAFAFA')
 fig2.patch.set_facecolor('white')
@@ -240,7 +225,6 @@ fig2.savefig(out2, bbox_inches='tight', dpi=200)
 plt.close(fig2)
 print(f'Saved: {out2}')
 
-# ── Print summary table ──────────────────────────────────────────────────────
 print('\nModel              T2 agree  T3 agree  T3>T2?')
 for _, row in piv.sort_values('agreement_rate_3', ascending=False).iterrows():
     flag = '↑ suppression' if row['agreement_rate_3'] > row['agreement_rate_2'] else '↓ genuine gap'

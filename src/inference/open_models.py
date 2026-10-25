@@ -32,7 +32,7 @@ BASE_MODELS = {
     'olmo_3_7b_base': {
         'path': HF / 'models--allenai--Olmo-3-1025-7B' / 'snapshots' /
                 'a81bae42db3975be1671e27b9c9a56da1a9f980f',
-        'gpus': [['0'], ['1'], ['2'], ['3']],   # 4 workers, 1 GPU each
+        'gpus': [['0'], ['1'], ['2'], ['3']],
         'batch_size': 32,
     },
     'llama_3.1_8b_base': {
@@ -44,12 +44,11 @@ BASE_MODELS = {
     'olmo_3_32b_base': {
         'path': HF / 'models--allenai--Olmo-3-1125-32B' / 'snapshots' /
                 'c2b61dae89a1ad10e4ad5653d0e46b590902607b',
-        'gpus': [['0', '1'], ['2', '3']],       # 2 workers, 2 GPUs each
+        'gpus': [['0', '1'], ['2', '3']],
         'batch_size': 16,
     },
 }
 
-# All prompt-column names that could appear in any sheet
 ALL_PROMPT_COLS = COUNTRIES + [
     'LLM',
     'No Mention', 'Arabic No Mention', 'Persian No Mention', 'Turkey No Mention',
@@ -70,7 +69,6 @@ def pending_sheets(xlsx_path, model_name):
     pending = []
     for sheet in xls.sheet_names:
         df = xls.parse(sheet)
-        # Check if every prompt column that exists in the sheet has its output col
         prompt_cols = [c for c in df.columns if c in ALL_PROMPT_COLS]
         for pc in prompt_cols:
             out = f'{pc}_{model_name}_full_answer'
@@ -99,11 +97,9 @@ def merge_worker_results(xlsx_path, model_name, ckpt_dir, sheet_names):
 
         for ckpt_file in sheet_ck.glob('*.json'):
             col = ckpt_file.stem.replace('_', ' ')
-            # Try both underscore and space versions
             if col not in df.columns:
-                col = ckpt_file.stem  # keep underscores
+                col = ckpt_file.stem
             if col not in df.columns:
-                # Try to find matching col
                 stem = ckpt_file.stem
                 matches = [c for c in df.columns if c.replace(' ', '_') == stem]
                 if matches:
@@ -129,7 +125,6 @@ def merge_worker_results(xlsx_path, model_name, ckpt_dir, sheet_names):
                 num_s[idx]  = v['extracted_number']
                 an_s[idx]   = json.dumps(v['analysis'], ensure_ascii=False)
                 np_s[idx]   = json.dumps(v['norm_probs'], ensure_ascii=False)
-                # Refusal: extracted_number not in valid range
                 try:
                     row_min = int(float(df.loc[idx, 'Min']))
                     row_max = int(float(df.loc[idx, 'MAX']))
@@ -175,7 +170,6 @@ def run_model(model_name, cfg):
     if not missing:
         print('  Nothing to do.', flush=True); return
 
-    # Determine which prompt columns to process across ALL pending sheets
     xls = pd.ExcelFile(xlsx_path)
     cols_to_process = set()
     for sheet in missing:
@@ -187,11 +181,9 @@ def run_model(model_name, cfg):
                              if c in ALL_PROMPT_COLS else 999)
     print(f'  Columns to process: {cols_to_process}', flush=True)
 
-    # Split columns across workers
     col_groups = split_columns(cols_to_process, n_workers)
     ckpt_dir   = DATA / '_checkpoints' / model_name
 
-    # Launch workers
     procs = []
     log_files = []
     for w, (gpus, cols) in enumerate(zip(gpu_groups, col_groups)):
@@ -217,7 +209,6 @@ def run_model(model_name, cfg):
         p = subprocess.Popen(cmd, env=env, stdout=lf, stderr=lf)
         procs.append((p, log_path, w))
 
-    # Wait for all workers
     print(f'  Waiting for {len(procs)} workers...', flush=True)
     while True:
         still_running = [(p, lf, w) for p, lf, w in procs if p.poll() is None]
@@ -225,7 +216,6 @@ def run_model(model_name, cfg):
             break
         time.sleep(30)
         for p, lf, w in still_running:
-            # Print last line of each worker log
             try:
                 lines = open(lf).readlines()
                 if lines:
@@ -233,7 +223,6 @@ def run_model(model_name, cfg):
             except Exception:
                 pass
 
-    # Check exit codes
     failed = [w for p, lf, w in procs if p.returncode != 0]
     if failed:
         print(f'  WARNING: workers {failed} exited with error.', flush=True)
@@ -245,7 +234,6 @@ def run_model(model_name, cfg):
 
 def main():
     LOG.parent.mkdir(exist_ok=True)
-    # Run models sequentially (they share GPUs, can't overlap 7B and 32B)
     for model_name, cfg in BASE_MODELS.items():
         run_model(model_name, cfg)
     print('\n=== All base models done ===', flush=True)
